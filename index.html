@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>KüchenVorrat v5 – Vorratsverwaltung</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>KüchenVorrat v11.1 – Vorratsverwaltung</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -1043,7 +1046,7 @@ function renderStorageLocations() {
       <span class="room-toggle">${shelves.length>0?'▼':'▶'}</span>
       <span class="room-emoji">🏠</span>
       <span class="room-name">${escHtml(room)}</span>
-      <span class="room-count">${shelves.length} Regal${shelves.length!==1?'e':''}</span>
+      <span class="room-count">${Object.keys(shelves).length} Regal${Object.keys(shelves).length!==1?'e':''}</span>
       <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteStorageLocation('${escHtml(room)}');renderStorageLocations();" title="Raum löschen">🗑️</button>
     </div>`;
 

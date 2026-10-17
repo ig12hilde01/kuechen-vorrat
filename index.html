@@ -335,26 +335,36 @@ body {
 /* Hide library's default buttons/links */
 #scannerReader button,
 #scannerReader a { display: none !important; }
-/* Scanner camera switch button */
-#cameraSwitchBtn {
+/* Camera picker */
+#cameraPickerWrap {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(0,0,0,.6);
-  border: 2px solid var(--primary);
-  color: #fff;
-  font-size: 1.3rem;
-  cursor: pointer;
   z-index: 10;
   display: none;
-  align-items: center;
-  justify-content: center;
 }
-#scannerContainer.scanning #cameraSwitchBtn {
-  display: flex;
+#scannerContainer.scanning #cameraPickerWrap {
+  display: block;
+}
+#cameraPicker {
+  background: rgba(0,0,0,.7);
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: .8rem;
+  padding: 6px 10px;
+  min-width: 160px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  line-height: 1.4;
+}
+#cameraPicker option {
+  background: #1a1d27;
+  color: #fff;
+  padding: 6px;
 }
 /* The scanning frame overlay */
 #scannerReader .html5-qrcode-button-camera-scan-again,
@@ -716,7 +726,11 @@ body {
       </button>
     </div>
     <div class="scanner-container" id="scannerContainer">
-      <button id="cameraSwitchBtn" onclick="switchCamera()" title="Kamera wechseln">🔄</button>
+      <div id="cameraPickerWrap">
+        <select id="cameraPicker" onchange="onCameraChange(this.value)">
+          <option value="">📷 Kamera wird geladen...</option>
+        </select>
+      </div>
       <div id="scannerReader"></div>
     </div>
     <div id="scannerResult"></div>
@@ -1364,6 +1378,9 @@ async function toggleScanner() {
     clearResult();
     if (btn) btn.textContent = '⏹ Scanner stoppen';
 
+    // Enumerate all available cameras
+    await enumerateCameras();
+
     currentScanner = new Html5Qrcode('scannerReader', false);
     await currentScanner.start(
       { facingMode: 'environment' },
@@ -1403,23 +1420,88 @@ async function toggleScanner() {
 }
 
 async function switchCamera() {
-  if (!currentScanner || !scannerRunning) return;
+  // Deprecated – replaced by camera picker dropdown
+}
 
-  // Toggle between back (environment) and front (user) camera
-  const newFacing = document.getElementById('scannerContainer').dataset.facing === 'user'
-    ? 'environment' : 'user';
-  document.getElementById('scannerContainer').dataset.facing = newFacing;
+async function enumerateCameras() {
+  const picker = document.getElementById('cameraPicker');
+  if (!picker) return;
+
+  try {
+    // Request initial permission to enumerate devices
+    const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    tempStream.getTracks().forEach(t => t.stop());
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+    picker.innerHTML = '';
+    if (videoDevices.length === 0) {
+      picker.innerHTML = '<option value="">Keine Kamera gefunden</option>';
+      return;
+    }
+
+    // Sort: prefer environment (back) cameras, then label keywords
+    videoDevices.sort((a, b) => {
+      const aEnv = (a.label||'').toLowerCase().includes('environment') || (a.label||'').toLowerCase().includes('back') || (a.label||'').toLowerCase().includes('rück');
+      const bEnv = (b.label||'').toLowerCase().includes('environment') || (b.label||'').toLowerCase().includes('back') || (b.label||'').toLowerCase().includes('rück');
+      if (aEnv && !bEnv) return -1;
+      if (!aEnv && bEnv) return 1;
+      return 0;
+    });
+
+    videoDevices.forEach((dev, idx) => {
+      const opt = document.createElement('option');
+      opt.value = dev.deviceId;
+
+      // Create human-readable label
+      let label = dev.label || `Kamera ${idx + 1}`;
+      // Clean up label
+      label = label
+        .replace(/camera/gi, '📷')
+        .replace(/front/gi, '🤳 Front')
+        .replace(/back/gi, '📷 Zurück')
+        .replace(/environment/gi, '📷 Rück')
+        .replace(/wide/gi, '🔍 Weitwinkel')
+        .replace(/ultra/gi, '🌐 Ultra')
+        .replace(/tele/gi, '🔭 Tele')
+        .replace(/zoom/gi, '🔎 Zoom')
+        .trim();
+
+      // Mark the current camera
+      if (currentScanner && dev.deviceId === currentScanner.currentVideoDeviceId) {
+        opt.selected = true;
+        label += ' ✔';
+      }
+
+      opt.textContent = label;
+      picker.appendChild(opt);
+    });
+
+    // Set default to first (usually back camera)
+    if (picker.options.length > 0 && !picker.value) {
+      picker.selectedIndex = 0;
+    }
+
+  } catch(err) {
+    picker.innerHTML = '<option value="">Kamera-Zugriff verweigert</option>';
+    console.error('Kamera-Auflistung fehlgeschlagen:', err);
+  }
+}
+
+async function onCameraChange(deviceId) {
+  if (!currentScanner || !scannerRunning || !deviceId) return;
 
   try {
     // Stop current
     await currentScanner.stop();
     currentScanner.clear();
 
-    // Restart with new camera
+    // Restart with selected camera
     document.getElementById('scannerReader').innerHTML = '';
     currentScanner = new Html5Qrcode('scannerReader', false);
     await currentScanner.start(
-      { facingMode: newFacing },
+      { deviceId: { exact: deviceId } },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
         console.log('✅ Barcode erkannt:', decodedText);
@@ -1435,6 +1517,8 @@ async function switchCamera() {
       },
       () => {}
     );
+
+    showToast('✅ Kamera gewechselt');
   } catch(err) {
     console.error('❌ Kamera wechseln fehlgeschlagen:', err);
     showResult('error', '❌ Kamera nicht verfügbar');
@@ -1491,6 +1575,9 @@ async function scanCabinet() {
     clearResult();
     container.classList.add('scanning');
     if (btn) btn.textContent = '⏹ Scanner stoppen';
+
+    // Enumerate all available cameras
+    await enumerateCameras();
 
     currentScanner = new Html5Qrcode('scannerReader', false);
     await currentScanner.start(

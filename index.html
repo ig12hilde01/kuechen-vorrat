@@ -24,9 +24,8 @@
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
-/* Don't break scanner elements */
-* { -webkit-user-select: text; user-select: text; }
-video, canvas, img, #scannerReader * { max-width: 100% !important; }
+/* Allow video to keep its natural size for scanners */
+video, iframe { max-width: 100%; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -309,24 +308,10 @@ body {
 .scanner-container {
   width: 100%;
   margin: 0 auto 16px;
-  border-radius: var(--radius);
   display: none;
 }
 #scannerReader {
   width: 100%;
-  border-radius: var(--radius);
-  overflow: hidden !important;
-}
-#scannerReader video {
-  width: 100% !important;
-  height: auto !important;
-  display: block !important;
-}
-/* Override library UI buttons */
-#scannerReader #html5-qrcode-button-camera-permission,
-#scannerReader #html5-qrcode-button-camera-switch,
-#scannerReader #html5-qrcode-anchor-different-scan {
-  display: none !important;
 }
 #scannerResult {
   text-align: center; padding: 10px; font-size: .85rem; color: var(--green);

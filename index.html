@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KüchenVorrat – Vorratsverwaltung</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3348;
+  --primary: #6c63ff;
+  --primary-glow: rgba(108,99,255,0.25);
+  --green: #2ecc71;
+  --yellow: #f1c40f;
+  --orange: #e67e22;
+  --red: #e74c3c;
+  --text: #e8e8f0;
+  --text2: #9498b0;
+  --text3: #5c6078;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header h1 { font-size: 1.2rem; font-weight: 700; }
+.header h1 span { color: var(--primary); }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-size: 1.1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s;
+}
+.icon-btn:hover { background: var(--primary); border-color: var(--primary); }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 71px; z-index: 99;
+  overflow-x: auto; scrollbar-width: none;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: 1; min-width: 70px; padding: 12px 8px;
+  background: none; border: none; color: var(--text2);
+  font-size: .75rem; font-weight: 600; cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .2s; white-space: nowrap;
+}
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-btn:active { background: var(--surface2); }
+
+/* ── CONTENT ── */
+.tab-content { display: none; padding: 16px; }
+.tab-content.active { display: block; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: all .2s;
+}
+.card:active { transform: scale(0.98); }
+
+.product-card {
+  display: flex; gap: 12px; align-items: center;
+  position: relative;
+}
+.product-emoji {
+  width: 52px; height: 52px; border-radius: var(--radius-sm);
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; flex-shrink: 0;
+}
+.product-info { flex: 1; min-width: 0; }
+.product-name { font-weight: 600; font-size: .95rem; margin-bottom: 2px; }
+.product-meta { color: var(--text2); font-size: .8rem; }
+.product-meta span { margin-right: 10px; }
+.product-actions { display: flex; flex-direction: column; gap: 4px; }
+.qty-btn {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.qty-btn:active { background: var(--primary); }
+.qty-display {
+  text-align: center; font-weight: 700; font-size: .85rem;
+  padding: 2px 0; color: var(--text);
+}
+.expiry-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: .7rem; font-weight: 600; margin-top: 4px;
+}
+.expiry-good { background: rgba(46,204,113,.15); color: var(--green); }
+.expiry-warn { background: rgba(241,196,15,.15); color: var(--yellow); }
+.expiry-soon { background: rgba(230,126,34,.15); color: var(--orange); }
+.expiry-expired { background: rgba(231,76,60,.15); color: var(--red); }
+
+/* ── FORMS ── */
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block; font-size: .8rem; font-weight: 600;
+  color: var(--text2); margin-bottom: 6px;
+}
+.form-input, .form-select {
+  width: 100%; padding: 12px 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: .9rem; outline: none; transition: border-color .2s;
+}
+.form-input:focus, .form-select:focus { border-color: var(--primary); }
+.form-select option { background: var(--surface2); }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 20px; border-radius: var(--radius-sm);
+  border: none; font-size: .9rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: #5a52e0; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-block { width: 100%; }
+.btn-sm { padding: 8px 14px; font-size: .8rem; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 200; display: none; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%; max-width: 500px; max-height: 85vh;
+  overflow-y: auto; padding: 20px;
+  animation: slideUp .3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal h2 { font-size: 1.1rem; margin-bottom: 16px; }
+.modal-handle {
+  width: 40px; height: 4px; background: var(--text3);
+  border-radius: 2px; margin: 0 auto 16px;
+}
+
+/* ── STATS ── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+  text-align: center;
+}
+.stat-value { font-size: 1.6rem; font-weight: 700; color: var(--primary); }
+.stat-label { font-size: .75rem; color: var(--text2); margin-top: 4px; }
+
+/* ── CATEGORIES ── */
+.category-list { display: flex; flex-direction: column; gap: 6px; }
+.category-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.category-item-left { display: flex; align-items: center; gap: 10px; }
+.cat-emoji { font-size: 1.3rem; }
+.cat-name { font-weight: 600; font-size: .9rem; }
+.cat-count { font-size: .8rem; color: var(--text2); }
+
+/* ── RECIPES ── */
+.recipe-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 10px;
+}
+.recipe-card h3 { font-size: .95rem; margin-bottom: 6px; }
+.recipe-meta { display: flex; gap: 12px; font-size: .75rem; color: var(--text2); margin-bottom: 8px; }
+.recipe-ingredients { font-size: .8rem; color: var(--text2); margin-bottom: 8px; }
+.recipe-inventory { font-size: .8rem; }
+.matched { color: var(--green); }
+.missing { color: var(--red); }
+
+/* ── APPLIANCES ── */
+.appliance-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.appliance-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 20px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: .85rem; cursor: pointer; user-select: none;
+}
+.appliance-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* ── WEEKLY PLAN ── */
+.week-day {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 10px; overflow: hidden;
+}
+.week-day-header {
+  padding: 10px 14px; font-weight: 600; font-size: .85rem;
+  display: flex; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.week-day-header .day-label { color: var(--primary); }
+.week-meal {
+  padding: 10px 14px; display: flex; justify-content: space-between;
+  align-items: center; font-size: .85rem;
+}
+.meal-type {
+  font-size: .7rem; padding: 2px 8px; border-radius: 10px;
+  background: var(--surface2); color: var(--text2);
+}
+
+/* ── SEARCH ── */
+.search-bar {
+  position: relative; margin-bottom: 14px;
+}
+.search-bar input {
+  width: 100%; padding: 12px 14px 12px 42px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: .9rem; outline: none;
+}
+.search-bar input:focus { border-color: var(--primary); }
+.search-bar .search-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); font-size: 1rem;
+}
+
+/* ── FILTER PILLS ── */
+.filter-pills {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;
+  margin-bottom: 14px; scrollbar-width: none;
+}
+.filter-pills::-webkit-scrollbar { display: none; }
+.filter-pill {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: .8rem; color: var(--text2); cursor: pointer;
+}
+.filter-pill.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text3);
+}
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state p { font-size: .9rem; }
+
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: 90px; right: 20px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  font-size: 1.5rem; border: none; cursor: pointer;
+  box-shadow: 0 4px 20px var(--primary-glow);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .2s; z-index: 50;
+}
+.fab:active { transform: scale(0.9); }
+
+/* ── NAV BAR ── */
+.nav-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  flex: 1; padding: 10px 0 8px; text-align: center;
+  background: none; border: none; color: var(--text3);
+  font-size: .65rem; font-weight: 600; cursor: pointer;
+}
+.nav-item .nav-icon { font-size: 1.3rem; display: block; margin-bottom: 2px; }
+.nav-item.active { color: var(--primary); }
+
+/* ── SCANNER ── */
+.scanner-container {
+  width: 100%; aspect-ratio: 1; max-width: 300px;
+  margin: 0 auto 16px; background: #000;
+  border-radius: var(--radius); overflow: hidden;
+  position: relative; display: none;
+}
+.scanner-container video { width: 100%; height: 100%; object-fit: cover; }
+.scanner-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.scanner-line {
+  width: 80%; height: 2px; background: var(--primary);
+  animation: scanLine 2s ease-in-out infinite;
+  box-shadow: 0 0 10px var(--primary);
+}
+@keyframes scanLine { 0%,100% { transform: translateY(-60px); } 50% { transform: translateY(60px); } }
+
+/* ── LOCATION TAG ── */
+.location-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 10px;
+  background: var(--surface2); font-size: .7rem;
+  color: var(--text2);
+}
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--surface2); border: 1px solid var(--border);
+  padding: 12px 20px; border-radius: var(--radius-sm);
+  font-size: .85rem; z-index: 300;
+  animation: fadeInDown .3s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4);
+}
+@keyframes fadeInDown { from { opacity:0; transform: translateX(-50%) translateY(-20px); } }
+
+/* ── CONFIRM DIALOG ── */
+.confirm-dialog {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 250; display: none; align-items: center; justify-content: center;
+}
+.confirm-dialog.show { display: flex; }
+.confirm-box {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 24px; width: 85%; max-width: 320px; text-align: center;
+}
+.confirm-box p { margin-bottom: 16px; font-size: .95rem; }
+.confirm-box .btn { margin: 0 4px; }
+
+/* ── DETAIL VIEW ── */
+.detail-view { display: none; }
+.detail-view.show { display: block; }
+.detail-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--primary); font-size: .9rem; cursor: pointer;
+  margin-bottom: 16px; background: none; border: none; font-weight: 600;
+}
+.detail-header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
+.detail-emoji {
+  width: 72px; height: 72px; border-radius: var(--radius);
+  background: var(--surface2); font-size: 2rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.detail-info { flex: 1; }
+.detail-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+.detail-category { color: var(--text2); font-size: .85rem; }
+.detail-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.detail-field {
+  background: var(--surface2); padding: 12px; border-radius: var(--radius-sm);
+}
+.detail-field-label { font-size: .7rem; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; }
+.detail-field-value { font-size: .95rem; font-weight: 600; margin-top: 4px; }
+.detail-edit-row { display: flex; gap: 8px; margin-top: 16px; }
+.detail-edit-row .btn { flex: 1; }
+
+/* ── RESPONSIVE ── */
+@media (min-width: 600px) {
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+  .detail-fields { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text3); border-radius: 2px; }
+
+/* ── SECTION HEADER ── */
+.section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.section-header h2 { font-size: 1rem; font-weight: 700; }
+.section-header .count { font-size: .8rem; color: var(--text3); }
+
+/* ── TABS (inner) ── */
+.inner-tabs {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  background: var(--surface2); border-radius: var(--radius-sm); padding: 3px;
+}
+.inner-tab {
+  flex: 1; padding: 8px; text-align: center; border-radius: 6px;
+  background: none; border: none; color: var(--text2);
+  font-size: .8rem; font-weight: 600; cursor: pointer;
+}
+.inner-tab.active { background: var(--primary); color: #fff; }
+
+/* ── APPLIANCE TAGS ── */
+.appliance-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.appliance-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  font-size: .75rem; color: var(--text2); cursor: pointer;
+  user-select: none;
+}
+.appliance-tag.active { background: rgba(108,99,255,.2); border-color: var(--primary); color: var(--primary); }
+
+/* ── WEEK PLAN DAY ── */
+.week-plan-day { margin-bottom: 12px; }
+.week-plan-day-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: var(--surface2);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-size: .8rem; font-weight: 600;
+}
+.week-plan-meals {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.week-plan-meal {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  font-size: .8rem;
+}
+.week-plan-meal:last-child { border-bottom: none; }
+.meal-breakfast { color: var(--yellow); }
+.meal-lunch { color: var(--green); }
+.meal-dinner { color: var(--primary); }
+
+/* ═══ LOGIN OVERLAY ═══ */
+.login-overlay {
+  position: fixed; inset: 0; background: var(--bg);
+  z-index: 9999; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.login-overlay.hidden { display: none; }
+.login-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 32px 24px;
+  width: 100%; max-width: 340px; text-align: center;
+}
+.login-box h2 { font-size: 1.3rem; margin-bottom: 6px; }
+.login-box p { font-size: .85rem; color: var(--text2); margin-bottom: 20px; }
+.login-box .lock-icon { font-size: 2.5rem; margin-bottom: 16px; }
+.login-box input {
+  width: 100%; padding: 14px 16px; margin-bottom: 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 1rem; outline: none; text-align: center;
+  letter-spacing: 2px;
+}
+.login-box input:focus { border-color: var(--primary); }
+.login-box .btn { width: 100%; }
+.login-error {
+  color: var(--red); font-size: .8rem; margin-top: 10px;
+  min-height: 20px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN OVERLAY ═══ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="lock-icon">🔒</div>
+    <h2>KüchenVorrat</h2>
+    <p>Passwort eingeben zum Fortfahren</p>
+    <input type="password" id="loginPassword" placeholder="Passwort" onkeydown="if(event.key==='Enter')attemptLogin()">
+    <button class="btn btn-primary" onclick="attemptLogin()">Einloggen</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <h1>🍽️ <span>Küchen</span>Vorrat</h1>
+  <div class="header-actions">
+    <button class="icon-btn" onclick="logout()" title="Ausloggen">🚪</button>
+    <button class="icon-btn" onclick="exportData()" title="Export">📤</button>
+    <button class="icon-btn" onclick="document.getElementById('importInput').click()" title="Import">📥</button>
+    <input type="file" id="importInput" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</div>
+
+<!-- ═══ INNER NAV ═══ -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="pantry" onclick="switchTab('pantry')">🏠 Vorrat</button>
+  <button class="tab-btn" data-tab="categories" onclick="switchTab('categories')">🗂️ Kategorien</button>
+  <button class="tab-btn" data-tab="recipes" onclick="switchTab('recipes')">🍳 Rezepte</button>
+  <button class="tab-btn" data-tab="weekplan" onclick="switchTab('weekplan')">📅 Wochenplan</button>
+  <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙️ Geräte</button>
+</div>
+
+<!-- ═══ PANTRY TAB ═══ -->
+<div class="tab-content active" id="tab-pantry">
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">Produkte</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statExpiring">0</div>
+      <div class="stat-label">Bald abgelaufen</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statExpired">0</div>
+      <div class="stat-label">Abgelaufen</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statCategories">0</div>
+      <div class="stat-label">Kategorien</div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Produkt suchen..." oninput="filterProducts()">
+  </div>
+
+  <!-- Filter Pills -->
+  <div class="filter-pills" id="filterPills">
+    <button class="filter-pill active" data-filter="all" onclick="setFilter('all')">Alle</button>
+  </div>
+
+  <!-- Product List -->
+  <div id="productList"></div>
+</div>
+
+<!-- ═══ CATEGORIES TAB ═══ -->
+<div class="tab-content" id="tab-categories">
+  <div class="section-header">
+    <h2>Kategorien</h2>
+    <span class="count" id="catCount"></span>
+  </div>
+  <div class="category-list" id="categoryList"></div>
+</div>
+
+<!-- ═══ RECIPES TAB ═══ -->
+<div class="tab-content" id="tab-recipes">
+  <div class="section-header">
+    <h2>🍳 Rezepte</h2>
+  </div>
+
+  <div class="form-group">
+    <label>Zutaten filtern (nur welche die du hast)</label>
+    <select class="form-select" id="recipeFilter" onchange="renderRecipes()">
+      <option value="all">Alle Rezepte</option>
+      <option value="available">Nur mit verfügbaren Zutaten</option>
+      <option value="mostly">Meistens vorhanden</option>
+    </select>
+  </div>
+
+  <div id="recipeList"></div>
+</div>
+
+<!-- ═══ WEEK PLAN TAB ═══ -->
+<div class="tab-content" id="tab-weekplan">
+  <div class="section-header">
+    <h2>📅 Wochenplan</h2>
+    <button class="btn btn-primary btn-sm" onclick="generateWeekPlan()">✨ Generieren</button>
+  </div>
+  <div class="form-group" style="margin-bottom:14px">
+    <label>Geräte für Rezepte</label>
+    <div class="appliance-tags" id="weekApplianceTags"></div>
+  </div>
+  <div id="weekPlan"></div>
+</div>
+
+<!-- ═══ SETTINGS TAB ═══ -->
+<div class="tab-content" id="tab-settings">
+  <div class="section-header">
+    <h2>⚙️ Küchengeräte</h2>
+  </div>
+  <p style="font-size:.85rem;color:var(--text2);margin-bottom:16px;">Welche Geräte hast du? Wähle alle die du nutzt.</p>
+  <div class="appliance-grid" id="applianceGrid"></div>
+
+  <div style="margin-top:24px">
+    <div class="section-header">
+      <h2>🗄️ Schränke / Orte</h2>
+      <button class="btn btn-secondary btn-sm" onclick="showAddLocation()">+ Hinzufügen</button>
+    </div>
+    <div id="locationList"></div>
+  </div>
+
+  <div style="margin-top:24px">
+    <div class="section-header">
+      <h2>📊 Daten</h2>
+    </div>
+    <button class="btn btn-danger btn-block" onclick="clearAllData()" style="margin-top:8px">🗑️ Alle Daten löschen</button>
+  </div>
+</div>
+
+<!-- ═══ PRODUCT DETAIL ═══ -->
+<div class="tab-content detail-view" id="tab-detail">
+  <button class="detail-back" onclick="closeDetail()">← Zurück</button>
+  <div id="detailContent"></div>
+</div>
+
+<!-- ═══ FAB ═══ -->
+<button class="fab" onclick="showAddProduct()" id="fabBtn">+</button>
+
+<!-- ═══ ADD PRODUCT MODAL ═══ -->
+<div class="modal-overlay" id="addProductModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">Produkt hinzufügen</h2>
+    <input type="hidden" id="editProductId">
+
+    <!-- Scanner Button -->
+    <div style="text-align:center;margin-bottom:14px">
+      <button class="btn btn-secondary btn-sm" onclick="toggleScanner()" id="scannerToggle">
+        📷 Barcode scannen
+      </button>
+    </div>
+    <div class="scanner-container" id="scannerContainer">
+      <video id="scannerVideo" autoplay playsinline></video>
+      <div class="scanner-overlay"><div class="scanner-line"></div></div>
+    </div>
+    <input type="hidden" id="barcodeValue">
+
+    <div class="form-group">
+      <label>Produktname *</label>
+      <input type="text" class="form-input" id="productName" placeholder="z.B. Nudeln">
+    </div>
+    <div class="form-group">
+      <label>Barcode (optional)</label>
+      <input type="text" class="form-input" id="productBarcode" placeholder="z.B. 4006381333915">
+    </div>
+    <div class="form-group">
+      <label>Kategorie</label>
+      <select class="form-select" id="productCategory">
+        <option value="Getreide">🌾 Getreide & Nudeln</option>
+        <option value="Hülsenfrüchte">🫘 Hülsenfrüchte</option>
+        <option value="Konserven">🥫 Konserven</option>
+        <option value="Gewürze">🧂 Gewürze</option>
+        <option value="Öle & Essig">🫒 Öle & Essig</option>
+        <option value="Saucen">🍅 Saucen</option>
+        <option value="Süßes">🍫 Süßes</option>
+        <option value="TrockenObst">🥜 Trockenfrüchte & Nüsse</option>
+        <option value="Gewürzkräuter">🌿 Gewürzkräuter</option>
+        <option value="Kühlregal">🧊 Kühlregal</option>
+        <option value="Frischgemüse">🥬 Frisches Gemüse</option>
+        <option value="FrischObst">🍎 Frisches Obst</option>
+        <option value="Milchprodukte">🥛 Milchprodukte</option>
+        <option value="Fleisch">🥩 Fleisch & Wurst</option>
+        <option value="Fisch">🐟 Fisch & Meeresfrüchte</option>
+        <option value="Eier">🥚 Eier</option>
+        <option value="Tiefkühl">❄️ Tiefkühl</option>
+        <option value="Getränke">🥤 Getränke</option>
+        <option value="Backen">🍞 Backzutaten</option>
+        <option value="Fertiggerichte">🍕 Fertiggerichte</option>
+        <option value="Sonstiges">📦 Sonstiges</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="flex:1">
+        <label>Menge</label>
+        <input type="text" class="form-input" id="productQuantity" placeholder="z.B. 500g oder 2 Stück">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Einheit</label>
+        <select class="form-select" id="productUnit">
+          <option value="Stück">Stück</option>
+          <option value="g">g</option>
+          <option value="kg">kg</option>
+          <option value="ml">ml</option>
+          <option value="l">l</option>
+          <option value="Packung">Packung</option>
+          <option value="Dose">Dose</option>
+          <option value="Glas">Glas</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Verfallsdatum</label>
+      <input type="date" class="form-input" id="productExpiry">
+    </div>
+    <div class="form-group">
+      <label>Aufbewahrungsort</label>
+      <select class="form-select" id="productLocation"></select>
+    </div>
+    <div class="form-group">
+      <label>Bemerkung (optional)</label>
+      <input type="text" class="form-input" id="productNote" placeholder="z.B. Bio, regional...">
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('addProductModal')">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveProduct()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONFIRM DIALOG ═══ -->
+<div class="confirm-dialog" id="confirmDialog">
+  <div class="confirm-box">
+    <p id="confirmText">Wirklich löschen?</p>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ NAV BAR ═══ -->
+<div class="nav-bar">
+  <button class="nav-item active" data-tab="pantry" onclick="switchTab('pantry')">
+    <span class="nav-icon">🏠</span>Vorrat
+  </button>
+  <button class="nav-item" data-tab="categories" onclick="switchTab('categories')">
+    <span class="nav-icon">🗂️</span>Kategorien
+  </button>
+  <button class="nav-item" data-tab="recipes" onclick="switchTab('recipes')">
+    <span class="nav-icon">🍳</span>Rezepte
+  </button>
+  <button class="nav-item" data-tab="weekplan" onclick="switchTab('weekplan')">
+    <span class="nav-icon">📅</span>Plan
+  </button>
+  <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+    <span class="nav-icon">⚙️</span>Geräte
+  </button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  DATABASE (localStorage)
+// ═══════════════════════════════════════════
+const DB = {
+  products: JSON.parse(localStorage.getItem('kv_products') || '[]'),
+  locations: JSON.parse(localStorage.getItem('kv_locations') || '["Kühlschrank","Küchenschrank","Vorratsraum","Eingemachtes","Obstschale","Tiefkühler"]'),
+  appliances: JSON.parse(localStorage.getItem('kv_appliances') || '["backofen","herd","mikrowelle","toaster","kaffeemaschine","mixer","waffeleisen"]'),
+  weekPlan: JSON.parse(localStorage.getItem('kv_weekplan') || 'null'),
+
+  saveProducts() { localStorage.setItem('kv_products', JSON.stringify(this.products)); },
+  saveLocations() { localStorage.setItem('kv_locations', JSON.stringify(this.locations)); },
+  saveAppliances() { localStorage.setItem('kv_appliances', JSON.stringify(this.appliances)); },
+  saveWeekPlan() { localStorage.setItem('kv_weekplan', JSON.stringify(this.weekPlan)); },
+
+  addProduct(p) { p.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7); this.products.push(p); this.saveProducts(); return p; },
+  updateProduct(id, data) { const idx = this.products.findIndex(p=>p.id===id); if(idx>=0) { Object.assign(this.products[idx], data); this.saveProducts(); } },
+  deleteProduct(id) { this.products = this.products.filter(p=>p.id!==id); this.saveProducts(); },
+  getProduct(id) { return this.products.find(p=>p.id===id); },
+
+  addLocation(loc) { if(!this.locations.includes(loc)) { this.locations.push(loc); this.saveLocations(); } },
+  removeLocation(loc) { this.locations = this.locations.filter(l=>l!==loc); this.saveLocations(); },
+};
+
+// ═══════════════════════════════════════════
+//  CATEGORY EMOJI MAP
+// ═══════════════════════════════════════════
+const CAT_EMOJI = {
+  'Getreide':'🌾','Hülsenfrüchte':'🫘','Konserven':'🥫','Gewürze':'🧂',
+  'Öle & Essig':'🫒','Saucen':'🍅','Süßes':'🍫','TrockenObst':'🥜',
+  'Gewürzkräuter':'🌿','Kühlregal':'🧊','Frischgemüse':'🥬','FrischObst':'🍎',
+  'Milchprodukte':'🥛','Fleisch':'🥩','Fisch':'🐟','Eier':'🥚',
+  'Tiefkühl':'❄️','Getränke':'🥤','Backen':'🍞','Fertiggerichte':'🍕','Sonstiges':'📦'
+};
+
+const APPLIANCE_LABELS = {
+  backofen:'🔥 Backofen', herdz:'🍳 Herd', mikrowelle:'📡 Mikrowelle', toaster:'🍞 Toaster',
+  kaffeemaschine:'☕ Kaffeemaschine', mixer:'🌀 Mixer', waffeleisen:'🧇 Waffeleisen',
+  standmixer:'🫧 Standmixer', sousvide:'🌡️ Sous Vide', airfryer:'🍟 Airfryer',
+  dampfgarer:'💨 Dampfgarer', brotbackautomat:'🥖 Brotbackautomat',
+  eismaschine:'🍨 Eismaschine', sushi_apparatur:'🍣 Sushi'
+};
+
+// ═══════════════════════════════════════════
+//  RECIPE DATABASE
+// ═══════════════════════════════════════════
+const RECIPES = [
+  { name:"Spaghetti Bolognese", ingredients:["Spaghetti","Hackfleisch","Tomaten","Zwiebeln","Knoblauch","Olivenöl","Salz","Pfeffer","Basilikum"], time:"30 min", appliance:["herd"], type:"Mittagessen", difficulty:"Mittel", cal:"650 kcal" },
+  { name:"Nudeln mit Tomaten-Sauce", ingredients:["Nudeln","Tomaten","Knoblauch","Olivenöl","Basilikum","Parmesan","Salz"], time:"20 min", appliance:["herd"], type:"Mittagessen", difficulty:"Einfach", cal:"480 kcal" },
+  { name:"Risotto", ingredients:["Reis","Zwiebeln","Weißwein","Gemüsepaste","Parmesan","Butter","Salz","Pfeffer"], time:"35 min", appliance:["herd"], type:"Mittagessen", difficulty:"Mittel", cal:"520 kcal" },
+  { name:"Omelette", ingredients:["Eier","Käse","Schinken","Salz","Pfeffer","Butter"], time:"10 min", appliance:["herd"], type:"Frühstück", difficulty:"Einfach", cal:"350 kcal" },
+  { name:"Rührei mit Toast", ingredients:["Eier","Milch","Salz","Pfeffer","Butter","Brot"], time:"8 min", appliance:["herd","toaster"], type:"Frühstück", difficulty:"Einfach", cal:"320 kcal" },
+  { name:"Pfannkuchen", ingredients:["Mehl","Eier","Milch","Zucker","Salz","Butter"], time:"20 min", appliance:["herd"], type:"Frühstück", difficulty:"Einfach", cal:"280 kcal" },
+  { name:"Kartoffelpüree", ingredients:["Kartoffeln","Butter","Milch","Salz","Pfeffer","Muskat"], time:"25 min", appliance:["herd"], type:"Beilage", difficulty:"Einfach", cal:"220 kcal" },
+  { name:"Gemüsepfanne", ingredients:["Paprika","Zucchini","Zwiebeln","Knoblauch","Olivenöl","Salz","Pfeffer"], time:"15 min", appliance:["herd"], type:"Mittagessen", difficulty:"Einfach", cal:"180 kcal" },
+  { name:"Gegrilltes Hähnchen", ingredients:["Hähnchenbrust","Olivenöl","Zitrone","Knoblauch","Salz","Pfeffer","Paprikapulver"], time:"35 min", appliance:["backofen","herd"], type:"Mittagessen", difficulty:"Mittel", cal:"420 kcal" },
+  { name:"Ofengemüse", ingredients:["Kartoffeln","Karotten","Zwiebeln","Paprika","Olivenöl","Salz","Pfeffer","Rosmarin"], time:"40 min", appliance:["backofen"], type:"Beilage", difficulty:"Einfach", cal:"200 kcal" },
+  { name:"Ofenkartoffeln", ingredients:["Kartoffeln","Olivenöl","Salz","Sahne","Käse"], time:"50 min", appliance:["backofen"], type:"Mittagessen", difficulty:"Einfach", cal:"380 kcal" },
+  { name:"Reissuppe", ingredients:["Reis","Karotten","Zwiebeln","Gemüsepaste","Brühe","Salz","Pfeffer","Kümmel"], time:"25 min", appliance:["herd"], type:"Mittagessen", difficulty:"Einfach", cal:"220 kcal" },
+  { name:"Linseneintopf", ingredients:["Linsen","Karotten","Sellerie","Zwiebeln","Gewürze","Brühe","Salz"], time:"40 min", appliance:["herd"], type:"Mittagessen", difficulty:"Mittel", cal:"340 kcal" },
+  { name:"Bolognese mit Penne", ingredients:["Penne","Hackfleisch","Tomatenmark","Zwiebeln","Knoblauch","Mohrrüben","Sellerie","Salz","Pfeffer"], time:"35 min", appliance:["herd"], type:"Mittagessen", difficulty:"Mittel", cal:"580 kcal" },
+  { name:"Nudelauflauf", ingredients:["Nudeln","Hackfleisch","Tomaten","Sahne","Käse","Zwiebeln","Gewürze"], time:"45 min", appliance:["backofen","herd"], type:"Mittagessen", difficulty:"Mittel", cal:"680 kcal" },
+  { name:"Suppe (selbstgemacht)", ingredients:["Gemüse","Zwiebeln","Knoblauch","Brühe","Gewürze","Nudeln (optional)"], time:"30 min", appliance:["herd"], type:"Mittagessen", difficulty:"Einfach", cal:"180 kcal" },
+  { name:"Rührgurken mit Dill", ingredients:["Gurken","Dill","Saure Sahne","Salz","Pfeffer","Zucker"], time:"5 min", appliance:[], type:"Beilage", difficulty:"Einfach", cal:"120 kcal" },
+  { name:"Käsespätzle", ingredients:["Mehl","Eier","Salz","Käse","Zwiebeln","Butter"], time:"35 min", appliance:["herd","backofen"], type:"Mittagessen", difficulty:"Mittel", cal:"620 kcal" },
+  { name:"Banane-Milch-Smoothie", ingredients:["Banane","Milch","Honig (oder Zucker)"], time:"5 min", appliance:["mixer"], type:"Frühstück", difficulty:"Einfach", cal:"220 kcal" },
+  { name:"Kaffee mit Milch", ingredients:["Kaffee","Milch","Zucker"], time:"3 min", appliance:["kaffeemaschine"], type:"Frühstück", difficulty:"Einfach", cal:"80 kcal" },
+  { name:"Nudeln mit Pesto", ingredients:["Nudeln","Pesto","Parmesan","Kirschtomaten"], time:"15 min", appliance:["herd"], type:"Mittagessen", difficulty:"Einfach", cal:"520 kcal" },
+  { name:"Müsli mit Joghurt", ingredients:["Müsli","Joghurt","Milch","Honig","Frucht (nach Wahl)"], time:"5 min", appliance:[], type:"Frühstück", difficulty:"Einfach", cal:"300 kcal" },
+  { name:"Toast mit Aufstrich", ingredients:["Brot","Butter","Marmelade (oder anderer Aufstrich)"], time:"3 min", appliance:["toaster"], type:"Frühstück", difficulty:"Einfach", cal:"250 kcal" },
+  { name:"Waffeln", ingredients:["Mehl","Eier","Milch","Zucker","Butter","Backpulver"], time:"20 min", appliance:["waffeleisen"], type:"Frühstück", difficulty:"Einfach", cal:"380 kcal" },
+  { name:"Airfryer Pommes", ingredients:["Kartoffeln","Olivenöl","Salz","Pfeffer"], time:"20 min", appliance:["airfryer"], type:"Beilage", difficulty:"Einfach", cal:"280 kcal" },
+  { name:"Toast mit Avocado", ingredients:["Brot","Avocado","Salz","Pfeffer","Chili (optional)","Zitrone"], time:"5 min", appliance:["toaster"], type:"Frühstück", difficulty:"Einfach", cal:"300 kcal" },
+  { name:"Gefüllte Paprika", ingredients:["Paprika","Hackfleisch","Reis","Tomaten","Zwiebeln","Gewürze"], time:"45 min", appliance:["backofen"], type:"Mittagessen", difficulty:"Mittel", cal:"480 kcal" },
+  { name:"Eis am Becher (selbst)", ingredients:["Sahne","Milch","Zucker","Vanille"], time:"10 min", appliance:["eismaschine"], type:"Dessert", difficulty:"Mittel", cal:"320 kcal" },
+  { name:"Pancakes", ingredients:["Mehl","Eier","Milch","Zucker","Backpulver","Butter","Ahornsirup (optional)"], time:"20 min", appliance:["herd"], type:"Frühstück", difficulty:"Einfach", cal:"400 kcal" },
+  { name:"Hähnchennuggets im Ofen", ingredients:["Hähnchenbrust","Semmelbrösel","Ei","Paprikapulver","Salz","Pfeffer"], time:"30 min", appliance:["backofen"], type:"Mittagessen", difficulty:"Einfach", cal:"380 kcal" },
+  { name:"Milchreis mit Zimt", ingredients:["Milchreis","Milch","Zucker","Zimt","Zitronenschale"], time:"30 min", appliance:["herd"], type:"Dessert", difficulty:"Einfach", cal:"280 kcal" },
+];
+
+// ═══════════════════════════════════════════
+//  BARCODE LOOKUP (Open Food Facts)
+// ═══════════════════════════════════════════
+async function lookupBarcode(barcode) {
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+    const data = await resp.json();
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      return {
+        name: p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt',
+        category: autoDetectCategory(p.product_name || ''),
+      };
+    }
+  } catch(e) { /* offline */ }
+  return null;
+}
+
+function autoDetectCategory(name) {
+  const n = (name||'').toLowerCase();
+  if (/nudel|spaghetti|penne|pasta|mehl|reis|teig/.test(n)) return 'Getreide';
+  if (/lins|bohne|kicher|erbse/.test(n)) return 'Hülsenfrüchte';
+  if (/konserv|dose|corn/.test(n)) return 'Konserven';
+  if (/gewuerz|pfeffer|salz|paprika pulv|curry|kumme|zimt/.test(n)) return 'Gewürze';
+  if (/olivenol|oel|essig|rapsol/.test(n)) return 'Öle & Essig';
+  if (/sauce|ketchup|senf|pesto|tomatenso/.test(n)) return 'Saucen';
+  if (/schokolad|kakao|zuck|honig|sues/.test(n)) return 'Süßes';
+  if (/nuss|mandel|walnuss|erdnuss|pinien/.test(n)) return 'TrockenObst';
+  if (/kraut|dill|basil|rosmarin|oregano|petersil/.test(n)) return 'Gewürzkräuter';
+  if (/kuhl|milch|joghurt|saure|sahne|kase|butter/.test(n)) return 'Milchprodukte';
+  if (/gemuese|gurke|tomate|zwieb|kartof|paprika|zucchi|spinat/.test(n)) return 'Frischgemüse';
+  if (/obst|apfel|banana|orange|erdbeer|beere/.test(n)) return 'FrischObst';
+  if (/hack|fleisch|wurst|hahnchen|brueste/.test(n)) return 'Fleisch';
+  if (/fisch|lachs|thunfisch|barsche/.test(n)) return 'Fisch';
+  if (/ei /.test(n) || n==='ei') return 'Eier';
+  if (/tiefkuehl|frozen|pizza gefro/.test(n)) return 'Tiefkühl';
+  if (/getraenk|saft|wasser|cola|tee|bier/.test(n)) return 'Getränke';
+  if (/backpulv|hefe|backmisch/.test(n)) return 'Backen';
+  if (/pizza gefro|fertiggericht|frozen meal/.test(n)) return 'Fertiggerichte';
+  return 'Sonstiges';
+}
+
+// ═══════════════════════════════════════════
+//  SCANNER
+// ═══════════════════════════════════════════
+let scannerStream = null;
+
+async function toggleScanner() {
+  const container = document.getElementById('scannerContainer');
+  const btn = document.getElementById('scannerToggle');
+
+  if (scannerStream) {
+    // Stop
+    scannerStream.getTracks().forEach(t=>t.stop());
+    scannerStream = null;
+    container.style.display = 'none';
+    btn.textContent = '📷 Barcode scannen';
+    return;
+  }
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+    const video = document.getElementById('scannerVideo');
+    video.srcObject = scannerStream;
+    container.style.display = 'block';
+    btn.textContent = '⏹ Scanner stoppen';
+
+    // Simulated barcode entry (since we can't usezxing easily in one file)
+    // User can manually enter or paste barcode
+    const input = document.getElementById('barcodeValue');
+    const code = prompt('Barcode eingeben oder einfügen:');
+    if (code) {
+      input.value = code;
+      document.getElementById('productBarcode').value = code;
+      const found = await lookupBarcode(code);
+      if (found) {
+        document.getElementById('productName').value = found.name;
+        document.getElementById('productCategory').value = found.category;
+        showToast('✅ Produkt gefunden: ' + found.name);
+      } else {
+        showToast('⚠️ Produkt nicht gefunden – bitte manuell eingeben');
+      }
+    }
+    // Stop scanner after use
+    scannerStream.getTracks().forEach(t=>t.stop());
+    scannerStream = null;
+    container.style.display = 'none';
+    btn.textContent = '📷 Barcode scannen';
+
+  } catch(e) {
+    // Fallback: manual input
+    const code = prompt('Barcode eingeben (oder abbrechen):');
+    if (code) {
+      document.getElementById('barcodeValue').value = code;
+      document.getElementById('productBarcode').value = code;
+      const found = await lookupBarcode(code);
+      if (found) {
+        document.getElementById('productName').value = found.name;
+        document.getElementById('productCategory').value = found.category;
+        showToast('✅ Produkt gefunden: ' + found.name);
+      } else {
+        showToast('⚠️ Nicht gefunden – manuell eingeben');
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════
+function switchTab(tab) {
+  // Hide detail view
+  document.getElementById('tab-detail').classList.remove('show');
+
+  // Tab bar
+  document.querySelectorAll('.tab-btn, .nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+
+  // Tab content
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  const target = document.getElementById('tab-' + tab);
+  if (target) target.classList.add('active');
+
+  // Refresh data
+  if (tab === 'pantry') renderPantry();
+  if (tab === 'categories') renderCategories();
+  if (tab === 'recipes') renderRecipes();
+  if (tab === 'weekplan') renderWeekPlan();
+  if (tab === 'settings') renderSettings();
+}
+
+// ═══════════════════════════════════════════
+//  PANTRY
+// ═══════════════════════════════════════════
+let currentFilter = 'all';
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === f);
+  });
+  filterProducts();
+}
+
+function filterProducts() {
+  renderPantry();
+}
+
+function getExpiryStatus(expiry) {
+  if (!expiry) return { label: 'Kein Datum', class: '' };
+  const now = new Date(); now.setHours(0,0,0,0);
+  const exp = new Date(expiry); exp.setHours(0,0,0,0);
+  const diff = Math.ceil((exp - now) / (1000*60*60*24));
+  if (diff < 0) return { label: `Vor ${Math.abs(diff)} Tag${Math.abs(diff)!==1?'e':''} abgelaufen`, class: 'expiry-expired' };
+  if (diff === 0) return { label: 'Heute abgelaufen', class: 'expiry-expired' };
+  if (diff <= 3) return { label: `In ${diff} Tag${diff!==1?'en':''} abgelaufen`, class: 'expiry-soon' };
+  if (diff <= 7) return { label: `In ${diff} Tage`, class: 'expiry-warn' };
+  if (diff <= 30) return { label: `In ${diff} Tage`, class: 'expiry-good' };
+  return { label: `In ${Math.ceil(diff/30)} Monat${Math.ceil(diff/30)!==1?'e':''}`, class: 'expiry-good' };
+}
+
+function renderPantry() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  let products = [...DB.products];
+
+  // Filter
+  if (currentFilter !== 'all') {
+    products = products.filter(p => p.category === currentFilter);
+  }
+
+  // Search
+  if (search) {
+    products = products.filter(p =>
+      (p.name||'').toLowerCase().includes(search) ||
+      (p.category||'').toLowerCase().includes(search) ||
+      (p.location||'').toLowerCase().includes(search) ||
+      (p.barcode||'').includes(search)
+    );
+  }
+
+  // Sort: expired first, then by expiry date
+  products.sort((a,b) => {
+    const ea = getExpiryStatus(a.expiry);
+    const eb = getExpiryStatus(b.expiry);
+    const order = { 'expiry-expired':0, 'expiry-soon':1, 'expiry-warn':2, 'expiry-good':3, '':4 };
+    return (order[ea.class]||5) - (order[eb.class]||5);
+  });
+
+  // Stats
+  const now = new Date(); now.setHours(0,0,0,0);
+  let expiring = 0, expired = 0;
+  DB.products.forEach(p => {
+    if (p.expiry) {
+      const exp = new Date(p.expiry); exp.setHours(0,0,0,0);
+      const diff = Math.ceil((exp - now) / (1000*60*60*24));
+      if (diff < 0) expired++;
+      else if (diff <= 7) expiring++;
+    }
+  });
+
+  document.getElementById('statTotal').textContent = DB.products.length;
+  document.getElementById('statExpiring').textContent = expiring;
+  document.getElementById('statExpired').textContent = expired;
+  document.getElementById('statCategories').textContent = [...new Set(DB.products.map(p=>p.category))].length;
+
+  // Filter pills
+  const categories = [...new Set(DB.products.map(p=>p.category))].sort();
+  let pillsHTML = '<button class="filter-pill active" data-filter="all" onclick="setFilter(\'all\')">Alle</button>';
+  categories.forEach(cat => {
+    const count = DB.products.filter(p=>p.category===cat).length;
+    pillsHTML += `<button class="filter-pill" data-filter="${cat}" onclick="setFilter('${cat}')">${CAT_EMOJI[cat]||'📦'} ${cat} (${count})</button>`;
+  });
+  document.getElementById('filterPills').innerHTML = pillsHTML;
+
+  // Product list
+  const list = document.getElementById('productList');
+  if (products.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗄️</div><p>Noch keine Produkte vorhanden.<br>Klicke + um etwas hinzuzufügen.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = products.map(p => {
+    const emoji = CAT_EMOJI[p.category] || '📦';
+    const expiry = getExpiryStatus(p.expiry);
+    const locTag = p.location ? `<span class="location-tag">📍 ${p.location}</span>` : '';
+
+    return `
+      <div class="card product-card" onclick="showDetail('${p.id}')">
+        <div class="product-emoji">${emoji}</div>
+        <div class="product-info">
+          <div class="product-name">${escHtml(p.name)}</div>
+          <div class="product-meta">
+            <span>${escHtml(p.quantity || '—')} ${escHtml(p.unit || '')}</span>
+            <span>${p.barcode ? '📱 ' + p.barcode : ''}</span>
+          </div>
+          <div style="margin-top:4px">
+            <span class="expiry-badge ${expiry.class}">${expiry.label}</span>
+            ${locTag}
+          </div>
+        </div>
+        <div class="product-actions">
+          <button class="qty-btn" onclick="event.stopPropagation();changeQty('${p.id}',1)">+</button>
+          <div class="qty-display">${escHtml(p.quantity)}</div>
+          <button class="qty-btn" onclick="event.stopPropagation();changeQty('${p.id}',-1)">−</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function changeQty(id, delta) {
+  const p = DB.getProduct(id);
+  if (!p) return;
+  // Try to parse numeric qty
+  const match = String(p.quantity).match(/^([\d.,]+)(.*)/);
+  if (match) {
+    const num = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2];
+    p.quantity = (num + delta);
+    if (p.quantity <= 0) {
+      if (confirm('„'+p.name+'" löschen?')) {
+        DB.deleteProduct(id);
+      } else {
+        p.quantity = num; // revert
+      }
+    } else {
+      p.quantity = p.quantity;
+      DB.saveProducts();
+    }
+  }
+  renderPantry();
+}
+
+// ═══════════════════════════════════════════
+//  DETAIL VIEW
+// ═══════════════════════════════════════════
+function showDetail(id) {
+  const p = DB.getProduct(id);
+  if (!p) return;
+
+  const emoji = CAT_EMOJI[p.category] || '📦';
+  const expiry = getExpiryStatus(p.expiry);
+
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-emoji">${emoji}</div>
+      <div class="detail-info">
+        <div class="detail-name">${escHtml(p.name)}</div>
+        <div class="detail-category">${escHtml(p.category)}</div>
+        <span class="expiry-badge ${expiry.class}" style="margin-top:6px;display:inline-block">${expiry.label}</span>
+      </div>
+    </div>
+    <div class="detail-fields">
+      <div class="detail-field">
+        <div class="detail-field-label">Menge</div>
+        <div class="detail-field-value">${escHtml(p.quantity||'—')} ${escHtml(p.unit||'')}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Verfallsdatum</div>
+        <div class="detail-field-value">${p.expiry || '—'}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Aufbewahrung</div>
+        <div class="detail-field-value">${p.location ? '📍 '+escHtml(p.location) : '—'}</div>
+      </div>
+      <div class="detail-field">
+        <div class="detail-field-label">Barcode</div>
+        <div class="detail-field-value">${p.barcode || '—'}</div>
+      </div>
+      ${p.note ? `<div class="detail-field" style="grid-column:span 2"><div class="detail-field-label">Bemerkung</div><div class="detail-field-value">${escHtml(p.note)}</div></div>` : ''}
+    </div>
+    <div class="detail-edit-row">
+      <button class="btn btn-primary" onclick="editProduct('${p.id}')">✏️ Bearbeiten</button>
+      <button class="btn btn-danger" onclick="deleteProduct('${p.id}')">🗑️ Löschen</button>
+    </div>
+  `;
+
+  // Hide all tabs, show detail
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-detail').classList.add('show');
+}
+
+function closeDetail() {
+  document.getElementById('tab-detail').classList.remove('show');
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === 'pantry');
+  });
+  document.getElementById('tab-pantry').classList.add('active');
+}
+
+function editProduct(id) {
+  const p = DB.getProduct(id);
+  if (!p) return;
+  showAddProduct(id);
+}
+
+function deleteProduct(id) {
+  const p = DB.getProduct(id);
+  if (!p) return;
+  showConfirm('„'+p.name+'" wirklich löschen?', () => {
+    DB.deleteProduct(id);
+    closeDetail();
+    renderPantry();
+    showToast('🗑️ Gelöscht');
+  });
+}
+
+// ═══════════════════════════════════════════
+//  ADD / EDIT PRODUCT
+// ═══════════════════════════════════════════
+function showAddProduct(editId) {
+  const modal = document.getElementById('addProductModal');
+  const title = document.getElementById('modalTitle');
+
+  // Fill locations
+  const locSelect = document.getElementById('productLocation');
+  locSelect.innerHTML = DB.locations.map(l => `<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+
+  if (editId) {
+    const p = DB.getProduct(editId);
+    if (!p) return;
+    title.textContent = 'Produkt bearbeiten';
+    document.getElementById('editProductId').value = editId;
+    document.getElementById('productName').value = p.name || '';
+    document.getElementById('productBarcode').value = p.barcode || '';
+    document.getElementById('productCategory').value = p.category || 'Sonstiges';
+    document.getElementById('productQuantity').value = p.quantity || '';
+    document.getElementById('productUnit').value = p.unit || 'Stück';
+    document.getElementById('productExpiry').value = p.expiry || '';
+    document.getElementById('productLocation').value = p.location || '';
+    document.getElementById('productNote').value = p.note || '';
+  } else {
+    title.textContent = 'Produkt hinzufügen';
+    document.getElementById('editProductId').value = '';
+    document.getElementById('productName').value = '';
+    document.getElementById('productBarcode').value = '';
+    document.getElementById('productCategory').value = 'Sonstiges';
+    document.getElementById('productQuantity').value = '';
+    document.getElementById('productUnit').value = 'Stück';
+    document.getElementById('productExpiry').value = '';
+    document.getElementById('productLocation').selectedIndex = 0;
+    document.getElementById('productNote').value = '';
+    document.getElementById('barcodeValue').value = '';
+  }
+
+  modal.classList.add('show');
+  // Auto focus name
+  setTimeout(() => document.getElementById('productName').focus(), 300);
+}
+
+function saveProduct() {
+  const name = document.getElementById('productName').value.trim();
+  if (!name) { showToast('❌ Produktname fehlt!'); return; }
+
+  const editId = document.getElementById('editProductId').value;
+  const barcode = document.getElementById('productBarcode').value.trim();
+  const category = document.getElementById('productCategory').value;
+  const quantity = document.getElementById('productQuantity').value.trim();
+  const unit = document.getElementById('productUnit').value;
+  const expiry = document.getElementById('productExpiry').value;
+  const location = document.getElementById('productLocation').value;
+  const note = document.getElementById('productNote').value.trim();
+
+  if (editId) {
+    DB.updateProduct(editId, { name, barcode, category, quantity, unit, expiry, location, note });
+    showToast('✅ Aktualisiert');
+  } else {
+    DB.addProduct({ name, barcode, category, quantity, unit, expiry, location, note });
+    showToast('✅ Hinzugefügt');
+  }
+
+  closeModal('addProductModal');
+  renderPantry();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+// ═══════════════════════════════════════════
+//  CATEGORIES
+// ═══════════════════════════════════════════
+function renderCategories() {
+  const catMap = {};
+  DB.products.forEach(p => {
+    if (!catMap[p.category]) catMap[p.category] = { count: 0, expiring: 0 };
+    catMap[p.category].count++;
+    if (p.expiry) {
+      const now = new Date(); now.setHours(0,0,0,0);
+      const exp = new Date(p.expiry); exp.setHours(0,0,0,0);
+      if (Math.ceil((exp - now)/(1000*60*60*24)) <= 7) catMap[p.category].expiring++;
+    }
+  });
+
+  const cats = Object.entries(catMap).sort((a,b) => b[1].count - a[1].count);
+  document.getElementById('catCount').textContent = cats.length + ' Kategorien';
+
+  document.getElementById('categoryList').innerHTML = cats.map(([cat, data]) => {
+    const emoji = CAT_EMOJI[cat] || '📦';
+    return `
+      <div class="category-item" onclick="setFilter('${cat}');switchTab('pantry')">
+        <div class="category-item-left">
+          <span class="cat-emoji">${emoji}</span>
+          <div>
+            <div class="cat-name">${escHtml(cat)}</div>
+            <div class="cat-count">${data.count} Produkt${data.count!==1?'e':''}</div>
+          </div>
+        </div>
+        ${data.expiring > 0 ? `<span class="expiry-badge expiry-soon">⚠️ ${data.expiring} bald abgelaufen</span>` : ''}
+      </div>
+    `;
+  }).join('') || `<div class="empty-state"><p>Keine Kategorien vorhanden.</p></div>`;
+}
+
+// ═══════════════════════════════════════════
+//  RECIPES
+// ═══════════════════════════════════════════
+function getAvailableIngredients() {
+  return new Set(DB.products.map(p => p.name.toLowerCase()));
+}
+
+function renderRecipes() {
+  const filter = document.getElementById('recipeFilter').value;
+  const available = getAvailableIngredients();
+  const appliances = DB.appliances;
+
+  // Match recipes
+  const matched = RECIPES.map(recipe => {
+    const has = recipe.ingredients.filter(i => {
+      const lower = i.toLowerCase();
+      return Array.from(available).some(a => a.includes(lower.split(/[,;]/)[0].trim()) || lower.split(/[,;]/)[0].trim().includes(a));
+    });
+    const total = recipe.ingredients.length;
+    const ratio = has.length / total;
+    const missing = recipe.ingredients.filter(i => !has.includes(i));
+
+    // Appliance check
+    const hasAppliance = recipe.appliance.length === 0 || recipe.appliance.some(a => appliances.includes(a));
+
+    return { ...recipe, has: has.length, total, ratio, missing, hasAppliance };
+  })
+  .filter(r => {
+    if (filter === 'available') return r.has === r.total && r.hasAppliance;
+    if (filter === 'mostly') return r.ratio >= 0.5 && r.hasAppliance;
+    return r.hasAppliance;
+  })
+  .sort((a,b) => b.ratio - a.ratio);
+
+  document.getElementById('recipeList').innerHTML = matched.length > 0 ?
+    matched.map(r => `
+      <div class="recipe-card">
+        <h3>${r.name}</h3>
+        <div class="recipe-meta">
+          <span>⏱ ${r.time}</span>
+          <span>📊 ${r.difficulty}</span>
+          <span>🔥 ${r.cal}</span>
+          <span>🍽 ${r.type}</span>
+        </div>
+        <div class="recipe-ingredients">
+          <div style="margin-bottom:4px;color:var(--text2)">Zutaten: ${r.has}/${r.total} vorhanden</div>
+          ${r.ingredients.map(i => {
+            const lower = i.toLowerCase().split(/[,;]/)[0].trim();
+            const present = Array.from(available).some(a => a.includes(lower) || lower.includes(a));
+            return `<span class="${present ? 'matched' : 'missing'}">●</span> ${escHtml(i)}&nbsp;`;
+          }).join('')}
+        </div>
+        ${r.missing.length > 0 ? `<div class="recipe-inventory" style="color:var(--red);margin-top:6px;font-size:.75rem">Fehlend: ${r.missing.map(m=>escHtml(m)).join(', ')}</div>` : '<div style="color:var(--green);font-size:.85rem;margin-top:6px;font-weight:600">✅ Alle Zutaten vorhanden!</div>'}
+      </div>
+    `).join('') :
+    `<div class="empty-state"><div class="empty-icon">🍳</div><p>Keine passenden Rezepte.<br>Füge Produkte hinzu, um Rezepte zu sehen!</p></div>`;
+}
+
+// ═══════════════════════════════════════════
+//  WEEK PLAN
+// ═══════════════════════════════════════════
+function renderWeekPlan() {
+  // Appliance tags
+  const container = document.getElementById('weekApplianceTags');
+  container.innerHTML = Object.entries(APPLIANCE_LABELS).map(([key, label]) => {
+    const active = DB.appliances.includes(key);
+    return `<div class="appliance-tag ${active?'active':''}" onclick="toggleWeekAppliance('${key}')">${label}</div>`;
+  }).join('');
+
+  if (!DB.weekPlan) {
+    document.getElementById('weekPlan').innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>Noch kein Wochenplan vorhanden.<br>Klicke „✨ Generieren" für einen Vorschlag.</p></div>`;
+    return;
+  }
+
+  const days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+  const typeColors = { 'Frühstück':'meal-breakfast', 'Mittagessen':'meal-lunch', 'Abendessen':'meal-dinner', 'Snack':'', 'Dessert':'' };
+
+  document.getElementById('weekPlan').innerHTML = DB.weekPlan.map((day, i) => `
+    <div class="week-plan-day">
+      <div class="week-plan-day-header">
+        <span class="day-label">${days[i]}</span>
+        <span style="color:var(--text3)">${day.recipes.length} Rezepte</span>
+      </div>
+      <div class="week-plan-meals">
+        ${day.recipes.map(r => `
+          <div class="week-plan-meal">
+            <span><span class="${typeColors[r.type]||''}">●</span> ${escHtml(r.name)}</span>
+            <span class="meal-type">${escHtml(r.type)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleWeekAppliance(key) {
+  const idx = DB.appliances.indexOf(key);
+  if (idx >= 0) DB.appliances.splice(idx, 1);
+  else DB.appliances.push(key);
+  DB.saveAppliances();
+  renderWeekPlan();
+}
+
+function generateWeekPlan() {
+  const appliances = DB.appliances;
+  const available = getAvailableIngredients();
+
+  // Filter recipes by appliance availability
+  const availableRecipes = RECIPES.filter(r => r.appliance.length === 0 || r.appliance.some(a => appliances.includes(a)));
+
+  // Score recipes by ingredient match
+  const scored = availableRecipes.map(r => {
+    let score = 0;
+    r.ingredients.forEach(i => {
+      const lower = i.toLowerCase().split(/[,;]/)[0].trim();
+      if (Array.from(available).some(a => a.includes(lower) || lower.includes(a))) score++;
+    });
+    return { ...r, score };
+  }).sort((a,b) => b.score - a.score);
+
+  const days = ['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
+  const types = ['Frühstück','Mittagessen','Abendessen'];
+  const weekPlan = [];
+
+  // Use seeded shuffle
+  let seed = 42;
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      seed = (seed * 16807) % 2147483647;
+      const j = seed % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  const shuffled = shuffle([...scored]);
+
+  days.forEach((day, dayIdx) => {
+    const recipes = [];
+    const typeIdx = dayIdx % 3;
+
+    // Try to pick a breakfast, lunch, dinner
+    types.forEach(type => {
+      const typeRecipes = shuffled.filter(r => r.type === type);
+      if (typeRecipes.length > 0) {
+        recipes.push(typeRecipes[dayIdx % typeRecipes.length]);
+      }
+    });
+
+    weekPlan.push({ day, recipes });
+  });
+
+  DB.weekPlan = weekPlan;
+  DB.saveWeekPlan();
+  renderWeekPlan();
+  showToast('✨ Wochenplan generiert!');
+}
+
+// ═══════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════
+function renderSettings() {
+  // Appliance grid
+  document.getElementById('applianceGrid').innerHTML = Object.entries(APPLIANCE_LABELS).map(([key, label]) => {
+    const active = DB.appliances.includes(key);
+    return `<div class="appliance-chip ${active?'active':''}" onclick="toggleAppliance('${key}')">${label}</div>`;
+  }).join('');
+
+  // Location list
+  document.getElementById('locationList').innerHTML = DB.locations.map(loc => `
+    <div class="category-item" style="margin-bottom:6px">
+      <div class="category-item-left">
+        <span class="cat-emoji">📍</span>
+        <span class="cat-name">${escHtml(loc)}</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="removeLocation('${escHtml(loc)}')">✕</button>
+    </div>
+  `).join('');
+}
+
+function toggleAppliance(key) {
+  const idx = DB.appliances.indexOf(key);
+  if (idx >= 0) DB.appliances.splice(idx, 1);
+  else DB.appliances.push(key);
+  DB.saveAppliances();
+  renderSettings();
+}
+
+function showAddLocation() {
+  const loc = prompt('Neuen Aufbewahrungsort eingeben:');
+  if (loc && loc.trim()) {
+    DB.addLocation(loc.trim());
+    renderSettings();
+    showToast('📍 Hinzugefügt');
+  }
+}
+
+function removeLocation(loc) {
+  if (confirm(`„${loc}" wirklich entfernen?`)) {
+    DB.removeLocation(loc);
+    renderSettings();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  CONFIRM / TOAST
+// ═══════════════════════════════════════════
+let confirmCallback = null;
+
+function showConfirm(text, callback) {
+  document.getElementById('confirmText').textContent = text;
+  confirmCallback = callback;
+  document.getElementById('confirmDialog').classList.add('show');
+}
+
+function confirmAction() {
+  document.getElementById('confirmDialog').classList.remove('show');
+  if (confirmCallback) confirmCallback();
+}
+
+function closeConfirm() {
+  document.getElementById('confirmDialog').classList.remove('show');
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+// ═══════════════════════════════════════════
+//  IMPORT / EXPORT
+// ═══════════════════════════════════════════
+function exportData() {
+  const data = {
+    products: DB.products,
+    locations: DB.locations,
+    appliances: DB.appliances,
+    weekPlan: DB.weekPlan,
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `kuechen-vorrat-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Exportiert!');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.products) {
+        DB.products = data.products;
+        DB.saveProducts();
+      }
+      if (data.locations) { DB.locations = data.locations; DB.saveLocations(); }
+      if (data.appliances) { DB.appliances = data.appliances; DB.saveAppliances(); }
+      if (data.weekPlan) { DB.weekPlan = data.weekPlan; DB.saveWeekPlan(); }
+      renderPantry();
+      showToast('📥 Importiert! ' + data.products?.length + ' Produkte');
+    } catch(err) {
+      showToast('❌ Fehler: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function clearAllData() {
+  showConfirm('Alle Daten unwiderruflich löschen?', () => {
+    DB.products = [];
+    DB.weekPlan = null;
+    DB.saveProducts();
+    DB.saveWeekPlan();
+    renderPantry();
+    showToast('🗑️ Alles gelöscht');
+  });
+}
+
+// ═══════════════════════════════════════════
+//  PASSWORD PROTECT
+// ═══════════════════════════════════════════
+// ⚠️ ÄNDERE DAS PASSWORT HIER – nur client-seitig, keine echte Verschlüsselung
+const APP_PASSWORD = 'kueche2024';
+
+function attemptLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  if (pw === APP_PASSWORD) {
+    sessionStorage.setItem('kv_authenticated', '1');
+    document.getElementById('loginOverlay').classList.add('hidden');
+    initApp();
+  } else {
+    document.getElementById('loginError').textContent = '❌ Falsches Passwort';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginPassword').focus();
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('kv_authenticated');
+  location.reload();
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem('kv_authenticated') === '1') {
+    document.getElementById('loginOverlay').classList.add('hidden');
+    initApp();
+    return true;
+  }
+  // Focus password field
+  setTimeout(() => document.getElementById('loginPassword').focus(), 200);
+  return false;
+}
+
+// ═══════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════
+function escHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+function initApp() {
+  renderPantry();
+  renderCategories();
+  renderRecipes();
+  renderWeekPlan();
+  renderSettings();
+}
+
+// Auto-detect browser language for category suggestions
+if (navigator.language && navigator.language.startsWith('de')) {
+  // German user – good!
+}
+
+// Service Worker for offline (if we had a separate file)
+// For now, localStorage handles everything
+
+// ── START ──
+checkAuth();
+</script>
+</body>
+</html>

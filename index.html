@@ -1174,19 +1174,9 @@ function saveStorageLocation() {
   if (type === 'room') {
     addRoom(name);
   } else if (type === 'shelf' && parentRoom) {
-    const existingShelves = Object.keys(STORAGE_LOCATIONS[parentRoom]?.shelves || {});
-    const num = existingShelves.length + 1;
-    const shelfName = 'Regal ' + num;
-    showToast('ℹ️ Automatischer Name: ' + shelfName);
-    addShelf(parentRoom, shelfName);
+    addShelf(parentRoom, name);
   } else if (type === 'compartment' && parentRoom && parentShelf) {
-    const roomData = STORAGE_LOCATIONS[parentRoom]?.shelves?.[parentShelf];
-    let compName = name;
-    if (roomData && roomData.compartments.length === 0) {
-      compName = 'Fach 1';
-      showToast('ℹ️ Automatischer Name: Fach 1');
-    }
-    addCompartment(parentRoom, parentShelf, compName);
+    addCompartment(parentRoom, parentShelf, name);
   }
 
   closeModal('storageLocationModal');

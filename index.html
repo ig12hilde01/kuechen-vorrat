@@ -1052,7 +1052,7 @@ function renderStorageLocations() {
       shelfNames.forEach((shelf, si) => {
         const sd = shelves[shelf];
         const comps = sd.compartments || [];
-        html += `<div class="location-shelf"><div class="location-shelf-header" onclick="toggleShelf('${escHtml(room)}')">
+        html += `<div class="location-shelf"><div class="location-shelf-header" onclick="toggleShelf('${escHtml(room)}','${escHtml(shelf)}')">
           <span class="shelf-toggle">${comps.length>0?'▼':'▶'}</span>
           <span class="shelf-emoji">📚</span>
           <span class="shelf-name">${escHtml(shelf)}</span>
@@ -1062,7 +1062,7 @@ function renderStorageLocations() {
         </div>`;
 
         if (comps.length > 0) {
-          html += `<div class="shelf-compartments" id="comps-${escHtml(room)}">`;
+          html += `<div class="shelf-compartments" id="comps-${escHtml(room)}-${escHtml(shelf)}">`;
           comps.forEach((comp, ci) => {
             html += `<div class="location-comp">
               <span class="comp-emoji">📦</span>
@@ -1091,8 +1091,8 @@ function toggleRoom(room) {
   if (h) { const t = h.querySelector('.room-toggle'); if(t) t.textContent = vis?'▶':'▼'; }
 }
 
-function toggleShelf(room) {
-  const el = document.getElementById('comps-'+room);
+function toggleShelf(room, shelf) {
+  const el = document.getElementById('comps-'+room+'-'+shelf);
   if (!el) return;
   const vis = el.style.display !== 'none';
   el.style.display = vis ? 'none' : 'block';
@@ -1122,17 +1122,27 @@ function updateParentOptions() {
   }
 
   parentGroup.style.display = 'block';
-  sel.innerHTML = '<option value="">– Kein Eltern-Objekt –</option>';
-  const rooms = Object.keys(STORAGE_LOCATIONS);
-  rooms.forEach(room => {
-    sel.innerHTML += `<option value="${escHtml(room)}">🏠 ${escHtml(room)} (Raum)</option>`;
-    if (type === 'shelf') {
+  sel.innerHTML = '<option value="">– Bitte wählen –</option>';
+
+  if (type === 'shelf') {
+    // Regal → Eltern = Raum
+    const rooms = Object.keys(STORAGE_LOCATIONS);
+    rooms.forEach(room => {
+      sel.innerHTML += `<option value="${escHtml(room)}">🏠 ${escHtml(room)} (Raum)</option>`;
+    });
+  } else if (type === 'compartment') {
+    // Fach → Eltern = Regal (nicht Raum!)
+    const rooms = Object.keys(STORAGE_LOCATIONS);
+    rooms.forEach(room => {
       const shelves = STORAGE_LOCATIONS[room]?.shelves || {};
       Object.keys(shelves).forEach(shelf => {
         sel.innerHTML += `<option value="${escHtml(room)}||${escHtml(shelf)}">📚 ${escHtml(room)} / ${escHtml(shelf)} (Regal)</option>`;
       });
+    });
+    if (sel.options.length === 1) {
+      sel.innerHTML = '<option value="">– Keine Regale vorhanden –</option>';
     }
-  });
+  }
 }
 
 function saveStorageLocation() {

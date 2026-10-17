@@ -335,6 +335,27 @@ body {
 /* Hide library's default buttons/links */
 #scannerReader button,
 #scannerReader a { display: none !important; }
+/* Scanner camera switch button */
+#cameraSwitchBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.6);
+  border: 2px solid var(--primary);
+  color: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  z-index: 10;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#scannerContainer.scanning #cameraSwitchBtn {
+  display: flex;
+}
 /* The scanning frame overlay */
 #scannerReader .html5-qrcode-button-camera-scan-again,
 #scannerReader .html5-qrcode-button-scan-again {
@@ -695,6 +716,7 @@ body {
       </button>
     </div>
     <div class="scanner-container" id="scannerContainer">
+      <button id="cameraSwitchBtn" onclick="switchCamera()" title="Kamera wechseln">🔄</button>
       <div id="scannerReader"></div>
     </div>
     <div id="scannerResult"></div>
@@ -1326,6 +1348,7 @@ async function toggleScanner() {
     currentScanner = null;
     scannerRunning = false;
     reader.innerHTML = '';
+    container.classList.remove('scanning');
     container.style.display = 'none';
     if (btn) btn.textContent = '📷 Barcode scannen';
     clearResult();
@@ -1337,6 +1360,7 @@ async function toggleScanner() {
     reader.innerHTML = '';
     reader.style.display = 'block';
     container.style.display = 'block';
+    container.classList.add('scanning');
     clearResult();
     if (btn) btn.textContent = '⏹ Scanner stoppen';
 
@@ -1375,6 +1399,45 @@ async function toggleScanner() {
     reader.innerHTML = '';
     container.style.display = 'none';
     if (btn) btn.textContent = '📷 Barcode scannen';
+  }
+}
+
+async function switchCamera() {
+  if (!currentScanner || !scannerRunning) return;
+
+  // Toggle between back (environment) and front (user) camera
+  const newFacing = document.getElementById('scannerContainer').dataset.facing === 'user'
+    ? 'environment' : 'user';
+  document.getElementById('scannerContainer').dataset.facing = newFacing;
+
+  try {
+    // Stop current
+    await currentScanner.stop();
+    currentScanner.clear();
+
+    // Restart with new camera
+    document.getElementById('scannerReader').innerHTML = '';
+    currentScanner = new Html5Qrcode('scannerReader', false);
+    await currentScanner.start(
+      { facingMode: newFacing },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        console.log('✅ Barcode erkannt:', decodedText);
+        scannerRunning = false;
+        currentScanner.stop().catch(() => {});
+        currentScanner = null;
+        const container = document.getElementById('scannerContainer');
+        container.style.display = 'none';
+        container.classList.remove('scanning');
+        const btn = document.getElementById('scannerToggle');
+        if (btn) btn.textContent = '📷 Barcode scannen';
+        handleBarcodeScanned(decodedText);
+      },
+      () => {}
+    );
+  } catch(err) {
+    console.error('❌ Kamera wechseln fehlgeschlagen:', err);
+    showResult('error', '❌ Kamera nicht verfügbar');
   }
 }
 
@@ -1426,6 +1489,7 @@ async function scanCabinet() {
     // Clean up
     document.getElementById('scannerReader').innerHTML = '';
     clearResult();
+    container.classList.add('scanning');
     if (btn) btn.textContent = '⏹ Scanner stoppen';
 
     currentScanner = new Html5Qrcode('scannerReader', false);
@@ -1436,6 +1500,7 @@ async function scanCabinet() {
         scannerRunning = false;
         currentScanner.stop().catch(() => {});
         currentScanner = null;
+        container.classList.remove('scanning');
         container.style.display = 'none';
         if (btn) btn.textContent = '📷 Barcode scannen';
 

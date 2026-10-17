@@ -396,6 +396,44 @@ body {
   color: var(--text2);
 }
 
+/* ── HIERARCHICAL LOCATION ── */
+.location-room { margin-bottom: 8px; }
+.location-room-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; user-select: none;
+}
+.location-room-header:hover { background: var(--surface2); }
+.room-toggle { color: var(--text3); font-size: .7rem; width: 16px; }
+.room-emoji { font-size: 1.2rem; }
+.room-name { font-weight: 600; font-size: .9rem; flex: 1; }
+.room-count { font-size: .75rem; color: var(--text3); }
+.room-shelves { margin-left: 24px; margin-top: 4px; }
+.location-shelf { margin-bottom: 4px; }
+.location-shelf-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; user-select: none; font-size: .85rem;
+}
+.location-shelf-header:hover { background: var(--border); }
+.shelf-toggle { color: var(--text3); font-size: .7rem; width: 16px; }
+.shelf-emoji { font-size: 1rem; }
+.shelf-name { font-weight: 500; flex: 1; }
+.shelf-count { font-size: .7rem; color: var(--text3); }
+.shelf-code { font-family: monospace; font-size: .7rem; color: var(--primary); }
+.shelf-compartments { margin-left: 24px; margin-top: 4px; }
+.location-comp {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 4px;
+  font-size: .8rem; margin-bottom: 2px;
+}
+.comp-emoji { font-size: .9rem; }
+.comp-name { flex: 1; }
+.comp-code { font-family: monospace; font-size: .7rem; color: var(--primary); }
+
 /* ── TOAST ── */
 .toast {
   position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
@@ -615,7 +653,7 @@ body {
     </div>
     <div class="stat-card">
       <div class="stat-value" id="statCabinets">0</div>
-      <div class="stat-label">Schränke</div>
+      <div class="stat-label">Lagerplätze</div>
     </div>
   </div>
 
@@ -637,14 +675,10 @@ body {
 <!-- ═══ CABINETS TAB ═══ -->
 <div class="tab-content" id="tab-cabinets">
   <div class="section-header">
-    <h2>🗄️ Schränke / Orte</h2>
-    <button class="btn btn-primary btn-sm" onclick="showAddCabinet()">+ Neuer Schrank</button>
+    <h2>🗄️ Lagerplätze (Räume → Regale → Fächer)</h2>
+    <button class="btn btn-primary btn-sm" onclick="showAddStorageLocation()">+ Neuer Lagerplatz</button>
   </div>
-  <div class="search-bar" style="margin-bottom:14px">
-    <span class="search-icon">🔍</span>
-    <input type="text" id="cabinetSearch" placeholder="Schränk suchen..." oninput="renderCabinets()">
-  </div>
-  <div id="cabinetList"></div>
+  <div id="storageLocationList"></div>
 </div>
 
 <!-- ═══ CATEGORIES TAB ═══ -->
@@ -812,39 +846,35 @@ body {
   </div>
 </div>
 
-<!-- ═══ CABINET MODAL ═══ -->
-<div class="modal-overlay" id="cabinetModal">
+<!-- ═══ STORAGE LOCATION MODAL ═══ -->
+<div class="modal-overlay" id="storageLocationModal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <h2 id="cabinetModalTitle">Neuer Schrank</h2>
-    <input type="hidden" id="editCabinetId">
+    <h2 id="storageLocationTitle">Lagerplatz hinzufügen</h2>
+    <div class="form-group">
+      <label>Typ</label>
+      <select class="form-select" id="locType" onchange="updateParentOptions()">
+        <option value="room">🏠 Raum</option>
+        <option value="shelf">📚 Regal (in Raum)</option>
+        <option value="compartment">📦 Fach (in Regal)</option>
+      </select>
+    </div>
+    <div class="form-group" id="parentGroup" style="display:none">
+      <label>Eltern-Objekt</label>
+      <select class="form-select" id="locParent">
+        <option value="">– Kein Eltern-Objekt –</option>
+      </select>
+    </div>
     <div class="form-group">
       <label>Name *</label>
-      <input type="text" class="form-input" id="cabinetName" placeholder="z.B. Küchenschrank oben">
+      <input type="text" class="form-input" id="locName" placeholder="z.B. Küche, Regal 1, Fach oben">
     </div>
-    <div class="form-group">
-      <label>Code (6-stellig)</label>
-      <input type="text" class="form-input" id="cabinetCode" maxlength="6" placeholder="z.B. A1B2C3" style="text-transform:uppercase;font-family:monospace;letter-spacing:3px;font-size:1.1rem">
-    </div>
-    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Der Code wird als QR-Code angezeigt – druck ihn aus und kleb ihn an den Schrank.</p>
-    <div id="cabinetQR" class="qr-preview" style="display:none"></div>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">
+      <strong>Auto-Codes:</strong> Räume erhalten 3-Buchstaben-Code (KÜC), Regale nummeriert (KÜC-1), Fächer mit Buchstaben (KÜC-1A).
+    </p>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('cabinetModal')">Abbrechen</button>
-      <button class="btn btn-primary" style="flex:2" onclick="saveCabinet()">💾 Speichern</button>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ CABINET VIEW MODAL ═══ -->
-<div class="modal-overlay" id="cabinetViewModal">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <h2 id="cabinetViewName">Schränk</h2>
-    <div id="cabinetViewQR" class="qr-preview" style="margin:16px auto"></div>
-    <div class="cabinet-code" id="cabinetViewCode" style="display:inline-block;margin:0 auto 16px"></div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('cabinetViewModal')">Schließen</button>
-      <button class="btn btn-primary" id="cabinetViewPrintBtn">🖨️ Drucken</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('storageLocationModal')">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveStorageLocation()">💾 Speichern</button>
     </div>
   </div>
 </div>
@@ -888,19 +918,75 @@ body {
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <script>
+// Hierarchische Lagerplatz-Struktur: { RaumName: { shelves: { "Regal 1": { compartments: ["Fach oben","Fach mitte","Fach unten"] } } } }
+let STORAGE_LOCATIONS = JSON.parse(localStorage.getItem('kv_storageLocations') || '{}');
+
+function generateLocationCode(room, shelfIndex, compLetter) {
+  const roomCode = (room||'').toUpperCase().replace(/[^A-ZÄ]/g, '').slice(0,3) || 'LOC';
+  return `${roomCode}-${shelfIndex||1}${compLetter||'A'}`;
+}
+
+function generatePath(room, shelf, comp) {
+  let p = room||'';
+  if (shelf) p += ' / ' + shelf;
+  if (comp) p += ' / ' + comp;
+  return p.trim();
+}
+
+// Alle Locations rekursiv sammeln: "Küche / Regal 1 / Fach oben"
+function getAllLocationsFlat() {
+  const paths = [];
+  Object.entries(STORAGE_LOCATIONS).forEach(([room, rd]) => {
+    const shelves = rd.shelves || {};
+    if (Object.keys(shelves).length === 0) {
+      paths.push(room);
+      return;
+    }
+    Object.entries(shelves).forEach(([shelf, sd]) => {
+      const comps = sd.compartments || [];
+      if (comps.length === 0) {
+        paths.push(generatePath(room, shelf));
+        return;
+      }
+      comps.forEach(c => paths.push(generatePath(room, shelf, c)));
+    });
+  });
+  return [...new Set(paths)].sort();
+}
+
+function deleteStorageLocation(path) {
+  const parts = path.split(' / ');
+  if (parts.length === 1) {
+    delete STORAGE_LOCATIONS[parts[0]];
+  } else if (parts.length === 2) {
+    const room = parts[0], shelf = parts[1];
+    if (STORAGE_LOCATIONS[room]?.shelves?.[shelf]) {
+      delete STORAGE_LOCATIONS[room].shelves[shelf];
+      if (Object.keys(STORAGE_LOCATIONS[room].shelves||{}).length === 0) delete STORAGE_LOCATIONS[room].shelves;
+      if (Object.keys(STORAGE_LOCATIONS[room]).length === 0) delete STORAGE_LOCATIONS[room];
+    }
+  } else if (parts.length >= 3) {
+    const room = parts[0], shelf = parts[1], comp = parts[2];
+    if (STORAGE_LOCATIONS[room]?.shelves?.[shelf]?.compartments) {
+      const i = STORAGE_LOCATIONS[room].shelves[shelf].compartments.indexOf(comp);
+      if (i >= 0) STORAGE_LOCATIONS[room].shelves[shelf].compartments.splice(i, 1);
+      if (STORAGE_LOCATIONS[room].shelves[shelf].compartments.length === 0) delete STORAGE_LOCATIONS[room].shelves[shelf].compartments;
+      if (Object.keys(STORAGE_LOCATIONS[room].shelves||{}).length === 0) delete STORAGE_LOCATIONS[room].shelves;
+      if (Object.keys(STORAGE_LOCATIONS[room]).length === 0) delete STORAGE_LOCATIONS[room];
+    }
+  }
+  localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS));
+}
+
 // ═══════════════════════════════════════════
-//  DATABASE (localStorage)
+//  DATABASE (products, appliances, weekPlan)
 // ═══════════════════════════════════════════
 const DB = {
   products: JSON.parse(localStorage.getItem('kv_products') || '[]'),
-  locations: JSON.parse(localStorage.getItem('kv_locations') || '["Kühlschrank","Küchenschrank","Vorratsraum","Eingemachtes","Obstschale","Tiefkühler"]'),
-  cabinets: JSON.parse(localStorage.getItem('kv_cabinets') || '[]'),
   appliances: JSON.parse(localStorage.getItem('kv_appliances') || '["backofen","herd","mikrowelle","toaster","kaffeemaschine","mixer","waffeleisen"]'),
   weekPlan: JSON.parse(localStorage.getItem('kv_weekplan') || 'null'),
 
   saveProducts() { localStorage.setItem('kv_products', JSON.stringify(this.products)); },
-  saveLocations() { localStorage.setItem('kv_locations', JSON.stringify(this.locations)); },
-  saveCabinets() { localStorage.setItem('kv_cabinets', JSON.stringify(this.cabinets)); },
   saveAppliances() { localStorage.setItem('kv_appliances', JSON.stringify(this.appliances)); },
   saveWeekPlan() { localStorage.setItem('kv_weekplan', JSON.stringify(this.weekPlan)); },
 
@@ -909,32 +995,222 @@ const DB = {
   deleteProduct(id) { this.products = this.products.filter(p=>p.id!==id); this.saveProducts(); },
   getProduct(id) { return this.products.find(p=>p.id===id); },
 
-  addCabinet(c) {
-    c.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-    c.code = c.code || generateCabinetCode();
-    this.cabinets.push(c);
-    if (!this.locations.includes(c.name)) {
-      this.locations.push(c.name);
-      this.saveLocations();
-    }
-    this.saveCabinets();
-    return c;
+  getExpiringProducts() {
+    const now = new Date(); now.setHours(0,0,0,0);
+    return this.products.filter(p => {
+      if (!p.expiry) return false;
+      const exp = new Date(p.expiry); exp.setHours(0,0,0,0);
+      return Math.ceil((exp - now)/(1000*60*60*24)) >= 0 && Math.ceil((exp - now)/(1000*60*60*24)) <= 7;
+    });
   },
-  updateCabinet(id, data) { const idx = this.cabinets.findIndex(c=>c.id===id); if(idx>=0) { Object.assign(this.cabinets[idx], data); this.saveCabinets(); } },
-  deleteCabinet(id) { this.cabinets = this.cabinets.filter(c=>c.id!==id); this.saveCabinets(); },
-  getCabinet(id) { return this.cabinets.find(c=>c.id===id); },
-  getCabinetByCode(code) { return this.cabinets.find(c => c.code.toUpperCase() === code.toUpperCase()); },
-  getCabinets() { return this.cabinets; },
-
-  addLocation(loc) { if(!this.locations.includes(loc)) { this.locations.push(loc); this.saveLocations(); } },
-  removeLocation(loc) { this.locations = this.locations.filter(l=>l!==loc); this.saveLocations(); },
+  getExpiredProducts() {
+    const now = new Date(); now.setHours(0,0,0,0);
+    return this.products.filter(p => {
+      if (!p.expiry) return false;
+      return new Date(p.expiry) < now;
+    });
+  },
+  getCabinetByCode(code) {
+    for (const [room, rd] of Object.entries(STORAGE_LOCATIONS)) {
+      const shelfNames = Object.keys(rd.shelves || {});
+      for (let i = 0; i < shelfNames.length; i++) {
+        if (generateLocationCode(room, i+1) === code) return { name: room + ' / ' + shelfNames[i], code: code };
+      }
+    }
+    return null;
+  },
 };
 
-function generateCabinetCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+// ═══════════════════════════════════════════
+//  STORAGE LOCATION MANAGEMENT
+// ═══════════════════════════════════════════
+function renderStorageLocations() {
+  const container = document.getElementById('storageLocationList');
+  const rooms = Object.keys(STORAGE_LOCATIONS);
+
+  if (rooms.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text3)"><div style="font-size:2rem;margin-bottom:8px">🏠</div><p>Keine Lagerplätze vorhanden.<br>Erstelle zuerst einen Raum.</p></div>`;
+    return;
+  }
+
+  let html = '';
+  rooms.forEach(room => {
+    const rd = STORAGE_LOCATIONS[room];
+    const shelves = rd.shelves || {};
+    const shelfNames = Object.keys(shelves);
+
+    html += `<div class="location-room"><div class="location-room-header" onclick="toggleRoom('${escHtml(room)}')">
+      <span class="room-toggle">${shelves.length>0?'▼':'▶'}</span>
+      <span class="room-emoji">🏠</span>
+      <span class="room-name">${escHtml(room)}</span>
+      <span class="room-count">${shelves.length} Regal${shelves.length!==1?'e':''}</span>
+      <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteStorageLocation('${escHtml(room)}');renderStorageLocations();" title="Raum löschen">🗑️</button>
+    </div>`;
+
+    if (shelves.length > 0) {
+      html += `<div class="room-shelves" id="shelves-${escHtml(room)}">`;
+      shelfNames.forEach((shelf, si) => {
+        const sd = shelves[shelf];
+        const comps = sd.compartments || [];
+        html += `<div class="location-shelf"><div class="location-shelf-header" onclick="toggleShelf('${escHtml(room)}')">
+          <span class="shelf-toggle">${comps.length>0?'▼':'▶'}</span>
+          <span class="shelf-emoji">📚</span>
+          <span class="shelf-name">${escHtml(shelf)}</span>
+          <span class="shelf-count">${comps.length} Fach${comps.length!==1?'er':''}</span>
+          <span class="shelf-code">Code: ${generateLocationCode(room, si+1)}</span>
+          <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteStorageLocation('${escHtml(generatePath(room,shelf))}');renderStorageLocations();" title="Regal löschen">🗑️</button>
+        </div>`;
+
+        if (comps.length > 0) {
+          html += `<div class="shelf-compartments" id="comps-${escHtml(room)}">`;
+          comps.forEach((comp, ci) => {
+            html += `<div class="location-comp">
+              <span class="comp-emoji">📦</span>
+              <span class="comp-name">${escHtml(comp)}</span>
+              <span class="comp-code">Code: ${generateLocationCode(room, si+1, String.fromCharCode(65+ci))}</span>
+              <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteStorageLocation('${escHtml(generatePath(room,shelf,comp))}');renderStorageLocations();" title="Fach löschen">🗑️</button>
+            </div>`;
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function toggleRoom(room) {
+  const el = document.getElementById('shelves-'+room);
+  if (!el) return;
+  const vis = el.style.display !== 'none';
+  el.style.display = vis ? 'none' : 'block';
+  const h = el.previousElementSibling;
+  if (h) { const t = h.querySelector('.room-toggle'); if(t) t.textContent = vis?'▶':'▼'; }
+}
+
+function toggleShelf(room) {
+  const el = document.getElementById('comps-'+room);
+  if (!el) return;
+  const vis = el.style.display !== 'none';
+  el.style.display = vis ? 'none' : 'block';
+  const h = el.parentElement.querySelector('.location-shelf-header');
+  if (h) { const t = h.querySelector('.shelf-toggle'); if(t) t.textContent = vis?'▶':'▼'; }
+}
+
+function showAddStorageLocation() {
+  const modal = document.getElementById('storageLocationModal');
+  document.getElementById('storageLocationTitle').textContent = 'Lagerplatz hinzufügen';
+  document.getElementById('locName').value = '';
+  document.getElementById('locParent').value = '';
+  document.getElementById('locType').value = 'room';
+  updateParentOptions();
+  modal.classList.add('show');
+  setTimeout(() => document.getElementById('locName').focus(), 200);
+}
+
+function updateParentOptions() {
+  const type = document.getElementById('locType').value;
+  const parentGroup = document.getElementById('parentGroup');
+  const sel = document.getElementById('locParent');
+
+  if (type === 'room') {
+    parentGroup.style.display = 'none';
+    return;
+  }
+
+  parentGroup.style.display = 'block';
+  sel.innerHTML = '<option value="">– Kein Eltern-Objekt –</option>';
+  const rooms = Object.keys(STORAGE_LOCATIONS);
+  rooms.forEach(room => {
+    sel.innerHTML += `<option value="${escHtml(room)}">🏠 ${escHtml(room)} (Raum)</option>`;
+    if (type === 'shelf') {
+      const shelves = STORAGE_LOCATIONS[room]?.shelves || {};
+      Object.keys(shelves).forEach(shelf => {
+        sel.innerHTML += `<option value="${escHtml(room)}||${escHtml(shelf)}">📚 ${escHtml(room)} / ${escHtml(shelf)} (Regal)</option>`;
+      });
+    }
+  });
+}
+
+function saveStorageLocation() {
+  const type = document.getElementById('locType').value;
+  const name = document.getElementById('locName').value.trim();
+  const parentVal = document.getElementById('locParent').value;
+  const parts = parentVal.split('||');
+  const parentRoom = parts[0];
+  const parentShelf = parts[1] || '';
+
+  if (!name) { showToast('❌ Name fehlt!'); return; }
+
+  if (type === 'room') {
+    addRoom(name);
+  } else if (type === 'shelf' && parentRoom) {
+    const existingShelves = Object.keys(STORAGE_LOCATIONS[parentRoom]?.shelves || {});
+    const num = existingShelves.length + 1;
+    const shelfName = 'Regal ' + num;
+    showToast('ℹ️ Automatischer Name: ' + shelfName);
+    addShelf(parentRoom, shelfName);
+  } else if (type === 'compartment' && parentRoom && parentShelf) {
+    const roomData = STORAGE_LOCATIONS[parentRoom]?.shelves?.[parentShelf];
+    let compName = name;
+    if (roomData && roomData.compartments.length === 0) {
+      compName = 'Fach 1';
+      showToast('ℹ️ Automatischer Name: Fach 1');
+    }
+    addCompartment(parentRoom, parentShelf, compName);
+  }
+
+  closeModal('storageLocationModal');
+  renderStorageLocations();
+}
+
+function addRoom(name) {
+  if (STORAGE_LOCATIONS[name]) { showToast('⚠️ Raum existiert'); return false; }
+  STORAGE_LOCATIONS[name] = { shelves: {} };
+  localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS));
+  showToast('✅ Raum "' + name + '" angelegt');
+  return true;
+}
+
+function addShelf(room, name) {
+  if (!STORAGE_LOCATIONS[room]) { showToast('❌ Raum nicht gefunden'); return false; }
+  if (!STORAGE_LOCATIONS[room].shelves) STORAGE_LOCATIONS[room].shelves = {};
+  if (STORAGE_LOCATIONS[room].shelves[name]) { showToast('⚠️ Regal existiert'); return false; }
+  STORAGE_LOCATIONS[room].shelves[name] = { compartments: [] };
+  localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS));
+  showToast('✅ Regal "' + name + '" angelegt');
+  return true;
+}
+
+function addCompartment(room, shelf, name) {
+  if (!STORAGE_LOCATIONS[room]?.shelves?.[shelf]) { showToast('❌ Regal nicht gefunden'); return false; }
+  const comps = STORAGE_LOCATIONS[room].shelves[shelf].compartments;
+  if (comps.includes(name)) { showToast('⚠️ Fach existiert'); return false; }
+  comps.push(name);
+  localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS));
+  showToast('✅ Fach "' + name + '" angelegt');
+  return true;
+}
+
+function getFirstLocation() {
+  const locs = getAllLocationsFlat();
+  return locs.length > 0 ? locs[0] : '';
+}
+
+function migrateOldCabinets() {
+  const oldCabinets = JSON.parse(localStorage.getItem('kv_cabinets') || '[]');
+  if (oldCabinets.length > 0 && Object.keys(STORAGE_LOCATIONS).length === 0) {
+    oldCabinets.forEach(c => {
+      if (c.name && !STORAGE_LOCATIONS[c.name]) {
+        STORAGE_LOCATIONS[c.name] = { shelves: { 'Regal 1': { compartments: [] } } };
+      }
+    });
+    localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS));
+    localStorage.setItem('kv_cabinets', '[]'); // Alte Liste leeren
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -1691,7 +1967,7 @@ function switchTab(tab) {
 
   // Refresh data
   if (tab === 'pantry') renderPantry();
-  if (tab === 'cabinets') renderCabinets();
+  if (tab === 'cabinets') renderStorageLocations();
   if (tab === 'categories') renderCategories();
   if (tab === 'recipes') renderRecipes();
   if (tab === 'weekplan') renderWeekPlan();
@@ -1770,7 +2046,7 @@ function renderPantry() {
   document.getElementById('statTotal').textContent = DB.products.length;
   document.getElementById('statExpiring').textContent = expiring;
   document.getElementById('statExpired').textContent = expired;
-  document.getElementById('statCabinets').textContent = DB.cabinets.length;
+  document.getElementById('statCabinets').textContent = Object.keys(STORAGE_LOCATIONS).length;
 
   // Filter pills
   const categories = [...new Set(DB.products.map(p=>p.category))].sort();
@@ -1838,123 +2114,14 @@ function changeQty(id, delta) {
 }
 
 // ═══════════════════════════════════════════
-//  CABINETS
+//  STUBS FOR OLD CABINET FUNCTIONS
 // ═══════════════════════════════════════════
-function renderCabinets() {
-  const search = document.getElementById('cabinetSearch').value.toLowerCase();
-  let cabinets = DB.cabinets;
-
-  if (search) {
-    cabinets = cabinets.filter(c =>
-      (c.name||'').toLowerCase().includes(search) ||
-      (c.code||'').toLowerCase().includes(search)
-    );
-  }
-
-  const list = document.getElementById('cabinetList');
-  if (cabinets.length === 0) {
-    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗄️</div><p>Keine Schränke vorhanden.<br>Klicke "+ Neuer Schrank" zum Erstellen.</p></div>`;
-    return;
-  }
-
-  list.innerHTML = cabinets.map(c => {
-    const count = DB.products.filter(p => p.location === c.name).length;
-    return `
-      <div class="cabinet-card">
-        <div class="cabinet-code">${escHtml(c.code)}</div>
-        <div class="cabinet-info">
-          <div class="cabinet-name">${escHtml(c.name)}</div>
-          <div class="cabinet-count">${count} Produkt${count!==1?'e':''}</div>
-        </div>
-        <button class="btn btn-secondary btn-xs" onclick="viewCabinet('${c.id}')" title="QR anzeigen">📱</button>
-        <button class="btn btn-secondary btn-xs" onclick="editCabinet('${c.id}')" title="Bearbeiten">✏️</button>
-        <button class="btn btn-danger btn-xs" onclick="deleteCabinet('${c.id}')" title="Löschen">🗑️</button>
-      </div>
-    `;
-  }).join('');
-}
-
-function viewCabinet(id) {
-  const c = DB.getCabinet(id);
-  if (!c) return;
-
-  document.getElementById('cabinetViewName').textContent = c.name;
-  document.getElementById('cabinetViewCode').textContent = c.code;
-  document.getElementById('cabinetViewPrintBtn').onclick = () => printCabinetQR(c);
-
-  generateQRCode('cabinetViewQR', c.code);
-  document.getElementById('cabinetViewModal').classList.add('show');
-}
-
-function showAddCabinet() {
-  document.getElementById('cabinetModalTitle').textContent = 'Neuer Schrank';
-  document.getElementById('editCabinetId').value = '';
-  document.getElementById('cabinetName').value = '';
-  document.getElementById('cabinetCode').value = '';
-  document.getElementById('cabinetQR').style.display = 'none';
-  document.getElementById('cabinetModal').classList.add('show');
-  setTimeout(() => document.getElementById('cabinetName').focus(), 300);
-}
-
-function editCabinet(id) {
-  const c = DB.getCabinet(id);
-  if (!c) return;
-
-  document.getElementById('cabinetModalTitle').textContent = 'Schränk bearbeiten';
-  document.getElementById('editCabinetId').value = id;
-  document.getElementById('cabinetName').value = c.name || '';
-  document.getElementById('cabinetCode').value = c.code || '';
-  generateQRCode('cabinetQR', c.code);
-  document.getElementById('cabinetQR').style.display = 'flex';
-  document.getElementById('cabinetModal').classList.add('show');
-}
-
-function saveCabinet() {
-  const name = document.getElementById('cabinetName').value.trim();
-  let code = document.getElementById('cabinetCode').value.trim().toUpperCase();
-
-  if (!name) { showToast('❌ Name fehlt!'); return; }
-  if (!code) code = generateCabinetCode();
-
-  // Validate code: only uppercase letters and digits, 6 chars
-  if (!/^[A-Z0-9]{6}$/.test(code)) {
-    showToast('❌ Code muss 6 Zeichen (A-Z, 0-9) sein – automatisch generiert');
-    code = generateCabinetCode();
-    document.getElementById('cabinetCode').value = code;
-  }
-
-  // Check for duplicate code
-  const existing = DB.getCabinetByCode(code);
-  const editId = document.getElementById('editCabinetId').value;
-  if (existing && existing.id !== editId) {
-    showToast('❌ Code existiert bereits');
-    return;
-  }
-
-  const editId2 = document.getElementById('editCabinetId').value;
-  if (editId2) {
-    DB.updateCabinet(editId2, { name, code });
-    showToast('✅ Aktualisiert');
-  } else {
-    DB.addCabinet({ name, code });
-    showToast('✅ Hinzugefügt');
-  }
-
-  closeModal('cabinetModal');
-  renderCabinets();
-  renderPantry();
-}
-
-function deleteCabinet(id) {
-  const c = DB.getCabinet(id);
-  if (!c) return;
-  showConfirm(`Schränk „${c.name}" löschen?`, () => {
-    DB.deleteCabinet(id);
-    renderCabinets();
-    renderPantry();
-    showToast('🗑️ Gelöscht');
-  });
-}
+function renderCabinets() { renderStorageLocations(); }
+function viewCabinet(id) { /* deprecated */ }
+function showAddCabinet() { showAddStorageLocation(); }
+function editCabinet(id) { /* deprecated */ }
+function saveCabinet() { /* deprecated */ }
+function deleteCabinet(id) { /* deprecated */ }
 
 // ═══════════════════════════════════════════
 //  DETAIL VIEW
@@ -2036,12 +2203,9 @@ function showAddProduct(editId) {
   const modal = document.getElementById('addProductModal');
   const title = document.getElementById('modalTitle');
 
-  // Fill locations (including cabinets)
+  // Fill locations from storage locations
   const locSelect = document.getElementById('productLocation');
-  const allLocations = [...new Set([
-    ...DB.locations,
-    ...DB.cabinets.map(c => c.name)
-  ])];
+  const allLocations = getAllLocationsFlat();
   locSelect.innerHTML = allLocations.map(l => `<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
 
   if (editId) {
@@ -2343,8 +2507,7 @@ function showToast(msg) {
 function exportData() {
   const data = {
     products: DB.products,
-    locations: DB.locations,
-    cabinets: DB.cabinets,
+    storageLocations: STORAGE_LOCATIONS,
     appliances: DB.appliances,
     weekPlan: DB.weekPlan,
     exportedAt: new Date().toISOString()
@@ -2355,7 +2518,7 @@ function exportData() {
   a.href = url;
   a.download = `kuechen-vorrat-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(blob);
   showToast('📤 Exportiert!');
 }
 
@@ -2367,12 +2530,12 @@ function importData(event) {
     try {
       const data = JSON.parse(e.target.result);
       if (data.products) { DB.products = data.products; DB.saveProducts(); }
-      if (data.locations) { DB.locations = data.locations; DB.saveLocations(); }
-      if (data.cabinets) { DB.cabinets = data.cabinets; DB.saveCabinets(); }
+      if (data.storageLocations) { STORAGE_LOCATIONS = data.storageLocations; localStorage.setItem('kv_storageLocations', JSON.stringify(STORAGE_LOCATIONS)); }
       if (data.appliances) { DB.appliances = data.appliances; DB.saveAppliances(); }
       if (data.weekPlan) { DB.weekPlan = data.weekPlan; DB.saveWeekPlan(); }
       renderPantry();
-      showToast('📥 Importiert! ' + (data.products?.length || 0) + ' Produkte, ' + (data.cabinets?.length || 0) + ' Schränke');
+      renderStorageLocations();
+      showToast('📥 Importiert! ' + (data.products?.length || 0) + ' Produkte, ' + (Object.keys(STORAGE_LOCATIONS).length || 0) + ' Lagerplätze');
     } catch(err) {
       showToast('❌ Fehler: ' + err.message);
     }
@@ -2384,12 +2547,13 @@ function importData(event) {
 function clearAllData() {
   showConfirm('Alle Daten unwiderruflich löschen?', () => {
     DB.products = [];
-    DB.cabinets = [];
+    STORAGE_LOCATIONS = {};
+    localStorage.setItem('kv_storageLocations', '{}');
     DB.weekPlan = null;
     DB.saveProducts();
-    DB.saveCabinets();
     DB.saveWeekPlan();
     renderPantry();
+    renderStorageLocations();
     showToast('🗑️ Alles gelöscht');
   });
 }

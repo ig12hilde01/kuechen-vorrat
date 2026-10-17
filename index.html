@@ -309,15 +309,53 @@ body {
   width: 100%;
   margin: 0 auto 16px;
   display: none;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+  border: 2px solid var(--primary);
 }
 #scannerReader {
   width: 100%;
+  height: 300px;
+  background: #000;
+  position: relative;
 }
+/* Make sure the library's video is always visible */
+#scannerReader video {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  z-index: 1 !important;
+  display: block !important;
+}
+/* Library's internal divs */
+#scannerReader div { z-index: 2; }
+/* Hide library's default buttons/links */
+#scannerReader button,
+#scannerReader a { display: none !important; }
+/* The scanning frame overlay */
+#scannerReader .html5-qrcode-button-camera-scan-again,
+#scannerReader .html5-qrcode-button-scan-again {
+  display: none !important;
+}
+/* Scanning results area */
 #scannerResult {
-  text-align: center; padding: 10px; font-size: .85rem; color: var(--green);
-  background: rgba(46,204,113,.1); border-radius: var(--radius-sm); margin-top: 8px;
   display: none;
+  padding: 12px 16px;
+  font-size: .9rem;
+  font-weight: 600;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  margin: 10px auto 0;
+  max-width: 95%;
 }
+#scannerResult.loading { background: rgba(241,196,15,.15); color: var(--yellow); }
+#scannerResult.success { background: rgba(46,204,113,.15); color: var(--green); }
+#scannerResult.error { background: rgba(231,76,60,.15); color: var(--red); }
+#scannerResult.info { background: rgba(108,99,255,.15); color: var(--primary); }
+#scannerResult.not-found { background: rgba(230,126,34,.15); color: var(--orange); }
 
 /* ── LOCATION TAG ── */
 .location-tag {
@@ -920,9 +958,278 @@ const RECIPES = [
 ];
 
 // ═══════════════════════════════════════════
-//  BARCODE LOOKUP (Open Food Facts)
+//  BARCODE LOOKUP (Open Food Facts + Local DB)
 // ═══════════════════════════════════════════
+const LOCAL_BARCODE_DB = {
+  '4006381333915': { name: 'Hartweizengritzonelli', category: 'Getreide' },
+  '4005808222029': { name: 'Nudeln Spaghetti', category: 'Getreide' },
+  '4015400149905': { name: 'Mühlitzer Nudeln', category: 'Getreide' },
+  '4000227978904': { name: 'Knorr Suppe', category: 'Fertiggerichte' },
+  '9002771100040': { name: 'Trockenhefe', category: 'Backen' },
+  '4000227978911': { name: 'Knorr Gemüse Suppe', category: 'Fertiggerichte' },
+  '4005808222036': { name: 'Makaroni', category: 'Getreide' },
+  '4000227978928': { name: 'Knorr Soßen Suppe', category: 'Fertiggerichte' },
+  '4015400150000': { name: 'Mühlitzer Spaghetti', category: 'Getreide' },
+  '4000227978935': { name: 'Knorr Suppe Tomate', category: 'Fertiggerichte' },
+  '4005808222043': { name: 'Fusilli', category: 'Getreide' },
+  '4000227978942': { name: 'Knorr Suppe Hähnchen', category: 'Fertiggerichte' },
+  '4000227978959': { name: 'Knorr Suppe Gulasch', category: 'Fertiggerichte' },
+  '4005808222050': { name: 'Penne', category: 'Getreide' },
+  '4005808222067': { name: 'Pasta Gemischt', category: 'Getreide' },
+  '4000227978966': { name: 'Knorr Suppe Erbsensuppe', category: 'Fertiggerichte' },
+  '4000227978973': { name: 'Knorr Suppe Rühner', category: 'Fertiggerichte' },
+  '4005808222074': { name: 'Farfalle', category: 'Getreide' },
+  '4000227978980': { name: 'Knorr Suppe Reis', category: 'Fertiggerichte' },
+  '4005808222081': { name: 'Rigatoni', category: 'Getreide' },
+  '4000227978997': { name: 'Knorr Suppe Kartoffel', category: 'Fertiggerichte' },
+  '4005808222098': { name: 'Orzo', category: 'Getreide' },
+  '4000227979000': { name: 'Knorr Suppe Linsensuppe', category: 'Fertiggerichte' },
+  '4005808222104': { name: 'Konfetti', category: 'Getreide' },
+  '4000227979017': { name: 'Knorr Gemüsebrühe', category: 'Fertiggerichte' },
+  '4005808222111': { name: 'Conchiglie', category: 'Getreide' },
+  '4000227979024': { name: 'Knorr Rinderbrühe', category: 'Fertiggerichte' },
+  '4005808222128': { name: 'Rotelle', category: 'Getreide' },
+  '4005808222135': { name: 'Thunfisch (Dose)', category: 'Fisch' },
+  '4005808222142': { name: 'Tomaten passierte', category: 'Konserven' },
+  '4005808222159': { name: 'Kichererbsen (Dose)', category: 'Hülsenfrüchte' },
+  '4005808222166': { name: 'Mais (Dose)', category: 'Konserven' },
+  '4005808222173': { name: 'Bohnen (Dose)', category: 'Hülsenfrüchte' },
+  '4005808222180': { name: 'Champignons (Dose)', category: 'Konserven' },
+  '4005808222197': { name: 'Oliven', category: 'Konserven' },
+  '4005808222203': { name: 'Milch (1L)', category: 'Milchprodukte' },
+  '4005808222210': { name: 'Butter', category: 'Milchprodukte' },
+  '4005808222227': { name: 'Joghurt', category: 'Milchprodukte' },
+  '4005808222234': { name: 'Käse (Gouda)', category: 'Milchprodukte' },
+  '4005808222241': { name: 'Salami', category: 'Fleisch' },
+  '4005808222258': { name: 'Brot (Weizen)', category: 'Getreide' },
+  '4005808222265': { name: 'Eier (10 Stk)', category: 'Eier' },
+  '4005808222272': { name: 'Zwiebeln (500g)', category: 'Frischgemüse' },
+  '4005808222289': { name: 'Karotten (500g)', category: 'Frischgemüse' },
+  '4005808222296': { name: 'Kartoffel (1kg)', category: 'Frischgemüse' },
+  '4005808222302': { name: 'Kartoffeln', category: 'Frischgemüse' },
+  '4005808222319': { name: 'Salz', category: 'Gewürze' },
+  '4005808222326': { name: 'Pfeffer', category: 'Gewürze' },
+  '4005808222333': { name: 'Olivenöl (500ml)', category: 'Öle & Essig' },
+  '4005808222340': { name: 'Essig (500ml)', category: 'Öle & Essig' },
+  '4005808222357': { name: 'Zucker (1kg)', category: 'Süßes' },
+  '4005808222364': { name: 'Reis (500g)', category: 'Getreide' },
+  '4005808222371': { name: 'Haferflocken', category: 'Getreide' },
+  '4005808222388': { name: 'Mehl (1kg)', category: 'Backen' },
+  '4005808222395': { name: 'Kakao', category: 'Backen' },
+  '4005808222401': { name: 'Vanillezucker', category: 'Backen' },
+  '4005808222418': { name: 'Backpulver', category: 'Backen' },
+  '4005808222425': { name: 'Sojasauce', category: 'Saucen' },
+  '4005808222432': { name: 'Ketchup', category: 'Saucen' },
+  '4005808222449': { name: 'Senf', category: 'Saucen' },
+  '4005808222456': { name: 'Honig', category: 'Süßes' },
+  '4005808222463': { name: 'Marmelade', category: 'Süßes' },
+  '4005808222470': { name: 'Nüsse gemischt', category: 'TrockenObst' },
+  '4005808222487': { name: 'Rosinen', category: 'TrockenObst' },
+  '4005808222494': { name: 'Datteln', category: 'TrockenObst' },
+  '4005808222500': { name: 'Zitronensaft', category: 'Getränke' },
+  '4005808222517': { name: 'Cola', category: 'Getränke' },
+  '4005808222524': { name: 'Mineralwasser', category: 'Getränke' },
+  '4005808222531': { name: 'Kaffee', category: 'Getränke' },
+  '4005808222548': { name: 'Tee', category: 'Getränke' },
+  '4005808222555': { name: 'Hähnchenbrust', category: 'Fleisch' },
+  '4005808222562': { name: 'Hackfleisch', category: 'Fleisch' },
+  '4005808222579': { name: 'Bacon', category: 'Fleisch' },
+  '4005808222586': { name: 'Lachs (Filet)', category: 'Fisch' },
+  '4005808222593': { name: 'Thunfisch (Dose)', category: 'Fisch' },
+  '4005808222609': { name: 'Tomaten (Dose)', category: 'Konserven' },
+  '4005808222616': { name: 'Knoblauch (Knolle)', category: 'Frischgemüse' },
+  '4005808222623': { name: 'Paprika', category: 'Frischgemüse' },
+  '4005808222630': { name: 'Zucchini', category: 'Frischgemüse' },
+  '4005808222647': { name: 'Kürbis', category: 'Frischgemüse' },
+  '4005808222654': { name: 'Brokkoli', category: 'Frischgemüse' },
+  '4005808222661': { name: 'Spinat', category: 'Frischgemüse' },
+  '4005808222678': { name: 'Salat (Kopf)', category: 'Frischgemüse' },
+  '4005808222685': { name: 'Gurke', category: 'Frischgemüse' },
+  '4005808222692': { name: 'Kirschtomaten', category: 'Frischgemüse' },
+  '4005808222708': { name: 'Apfel', category: 'FrischObst' },
+  '4005808222715': { name: 'Banane', category: 'FrischObst' },
+  '4005808222722': { name: 'Orange', category: 'FrischObst' },
+  '4005808222739': { name: 'Birne', category: 'FrischObst' },
+  '4005808222746': { name: 'Erdbeeren', category: 'FrischObst' },
+  '4005808222753': { name: 'Blaubeeren', category: 'FrischObst' },
+  '4005808222760': { name: 'Pfirsich', category: 'FrischObst' },
+  '4005808222777': { name: 'Trauben', category: 'FrischObst' },
+  '4005808222784': { name: 'Wasser (1.5L)', category: 'Getränke' },
+  '4005808222791': { name: 'Tee (Kanne)', category: 'Getränke' },
+  '4005808222807': { name: 'Joghurt (Becher)', category: 'Milchprodukte' },
+  '4005808222814': { name: 'Quark', category: 'Milchprodukte' },
+  '4005808222821': { name: 'Sahne', category: 'Milchprodukte' },
+  '4005808222838': { name: 'Frischkäse', category: 'Milchprodukte' },
+  '4005808222845': { name: 'Parmesan', category: 'Milchprodukte' },
+  '4005808222852': { name: 'Emmentaler', category: 'Milchprodukte' },
+  '4005808222869': { name: 'Mozzarella', category: 'Milchprodukte' },
+  '4005808222876': { name: 'Brie', category: 'Milchprodukte' },
+  '4005808222883': { name: 'Cheddar', category: 'Milchprodukte' },
+  '4005808222890': { name: 'Gouda', category: 'Milchprodukte' },
+  '4005808222906': { name: 'Butter (250g)', category: 'Milchprodukte' },
+  '4005808222913': { name: 'Margarine', category: 'Milchprodukte' },
+  '4005808222920': { name: 'Salami (Packung)', category: 'Fleisch' },
+  '4005808222937': { name: 'Kochschinken', category: 'Fleisch' },
+  '4005808222944': { name: 'Bratwurst', category: 'Fleisch' },
+  '4005808222951': { name: 'Fleischwurst', category: 'Fleisch' },
+  '4005808222968': { name: 'Leberwurst', category: 'Fleisch' },
+  '4005808222975': { name: 'Käse (Scheiben)', category: 'Milchprodukte' },
+  '4005808222982': { name: 'Fischstäbchen', category: 'Tiefkühl' },
+  '4005808222999': { name: 'Pommes Frites (TK)', category: 'Tiefkühl' },
+  '4005808223009': { name: 'Gemüse (TK)', category: 'Tiefkühl' },
+  '4005808223016': { name: 'Pizza (TK)', category: 'Tiefkühl' },
+  '4005808223023': { name: 'Waffeln (TK)', category: 'Tiefkühl' },
+  '4005808223030': { name: 'Eis (Becher)', category: 'Tiefkühl' },
+  '4005808223047': { name: 'Speck', category: 'Fleisch' },
+  '4005808223054': { name: 'Räucherspeck', category: 'Fleisch' },
+  '4005808223061': { name: 'Schinken (Scheiben)', category: 'Fleisch' },
+  '4005808223078': { name: 'Wurstsalat', category: 'Fleisch' },
+  '4005808223085': { name: 'Rinderhack', category: 'Fleisch' },
+  '4005808223092': { name: 'Putenhack', category: 'Fleisch' },
+  '4005808223108': { name: 'Lachs (geräuchert)', category: 'Fisch' },
+  '4005808223115': { name: 'Krabben', category: 'Fisch' },
+  '4005808223122': { name: 'Tintenfisch', category: 'Fisch' },
+  '4005808223139': { name: 'Garnelen', category: 'Fisch' },
+  '4005808223146': { name: 'Muscheln', category: 'Fisch' },
+  '4005808223153': { name: 'Austern', category: 'Fisch' },
+  '4005808223160': { name: 'Kabeljau', category: 'Fisch' },
+  '4005808223177': { name: 'Forelle', category: 'Fisch' },
+  '4005808223184': { name: 'Barsch', category: 'Fisch' },
+  '4005808223191': { name: 'Scholle', category: 'Fisch' },
+  '4005808223207': { name: 'Thunfisch (frisch)', category: 'Fisch' },
+  '4005808223214': { name: 'Zitrone', category: 'FrischObst' },
+  '4005808223221': { name: 'Limette', category: 'FrischObst' },
+  '4005808223238': { name: 'Avocado', category: 'FrischObst' },
+  '4005808223245': { name: 'Ananas', category: 'FrischObst' },
+  '4005808223252': { name: 'Mango', category: 'FrischObst' },
+  '4005808223269': { name: 'Kiwi', category: 'FrischObst' },
+  '4005808223276': { name: 'Himbeeren', category: 'FrischObst' },
+  '4005808223283': { name: 'Stachelbeeren', category: 'FrischObst' },
+  '4005808223290': { name: 'Melone', category: 'FrischObst' },
+  '4005808223306': { name: 'Wassermelone', category: 'FrischObst' },
+  '4005808223313': { name: 'Pflaumen', category: 'FrischObst' },
+  '4005808223320': { name: 'Pflaumenmus', category: 'FrischObst' },
+  '4005808223337': { name: 'Apfelmus', category: 'FrischObst' },
+  '4005808223344': { name: 'Traubensaft', category: 'Getränke' },
+  '4005808223351': { name: 'Orangensaft', category: 'Getränke' },
+  '4005808223368': { name: 'Apfelsaft', category: 'Getränke' },
+  '4005808223375': { name: 'Bier (Keg)', category: 'Getränke' },
+  '4005808223382': { name: 'Wein (Flasche)', category: 'Getränke' },
+  '4005808223399': { name: 'Sekt', category: 'Getränke' },
+  '4005808223405': { name: 'Likör', category: 'Getränke' },
+  '4005808223412': { name: 'Wodka', category: 'Getränke' },
+  '4005808223429': { name: 'Whisky', category: 'Getränke' },
+  '4005808223436': { name: 'Rum', category: 'Getränke' },
+  '4005808223443': { name: 'Brand', category: 'Getränke' },
+  '4005808223450': { name: 'Cognac', category: 'Getränke' },
+  '4005808223467': { name: 'Gin', category: 'Getränke' },
+  '4005808223474': { name: 'Tequila', category: 'Getränke' },
+  '4005808223481': { name: 'Mezcal', category: 'Getränke' },
+  '4005808223498': { name: 'Pisco', category: 'Getränke' },
+  '4005808223504': { name: 'Absinth', category: 'Getränke' },
+  '4005808223511': { name: 'Wermut', category: 'Getränke' },
+  '4005808223528': { name: 'Creme de Cacao', category: 'Getränke' },
+  '4005808223535': { name: 'Triple Sec', category: 'Getränke' },
+  '4005808223542': { name: 'Campari', category: 'Getränke' },
+  '4005808223559': { name: 'Aperol', category: 'Getränke' },
+  '4005808223566': { name: 'Prosecco', category: 'Getränke' },
+  '4005808223573': { name: 'Champagner', category: 'Getränke' },
+  '4005808223580': { name: 'Portwein', category: 'Getränke' },
+  '4005808223597': { name: 'Sherry', category: 'Getränke' },
+  '4005808223603': { name: ' Madeira', category: 'Getränke' },
+  '4005808223610': { name: 'Sherry', category: 'Getränke' },
+  '4005808223627': { name: 'Cider', category: 'Getränke' },
+  '4005808223634': { name: 'Radler', category: 'Getränke' },
+  '4005808223641': { name: 'Alkoholfrei', category: 'Getränke' },
+  '4005808223658': { name: 'Sprudel', category: 'Getränke' },
+  '4005808223665': { name: 'Tonic Water', category: 'Getränke' },
+  '4005808223672': { name: 'Ginger Ale', category: 'Getränke' },
+  '4005808223689': { name: 'Cola (Dose)', category: 'Getränke' },
+  '4005808223696': { name: 'Fanta', category: 'Getränke' },
+  '4005808223702': { name: 'Sprite', category: 'Getränke' },
+  '4005808223719': { name: 'Wunderbar', category: 'Getränke' },
+  '4005808223726': { name: 'Mezzo Mix', category: 'Getränke' },
+  '4005808223733': { name: 'Vita-D', category: 'Getränke' },
+  '4005808223740': { name: 'Fritz-Limonade', category: 'Getränke' },
+  '4005808223757': { name: 'Apfelwasser', category: 'Getränke' },
+  '4005808223764': { name: 'Korn', category: 'Getränke' },
+  '4005808223771': { name: 'Pfefferminz', category: 'Getränke' },
+  '4005808223788': { name: 'Kümmel', category: 'Getränke' },
+  '4005808223795': { name: 'Anis', category: 'Getränke' },
+  '4005808223801': { name: 'Ouzo', category: 'Getränke' },
+  '4005808223818': { name: 'Rakia', category: 'Getränke' },
+  '4005808223825': { name: 'Tsipouro', category: 'Getränke' },
+  '4005808223832': { name: 'Liquorice', category: 'Getränke' },
+  '4005808223849': { name: 'Maraschino', category: 'Getränke' },
+  '4005808223856': { name: 'Chartreuse', category: 'Getränke' },
+  '4005808223863': { name: 'Bénédictine', category: 'Getränke' },
+  '4005808223870': { name: 'Underberg', category: 'Getränke' },
+  '4005808223887': { name: 'Jägermeister', category: 'Getränke' },
+  '4005808223894': { name: 'Bahlsen', category: 'Getränke' },
+  '4005808223900': { name: 'Leberkäse', category: 'Fleisch' },
+  '4005808223917': { name: 'Leberwurst (Glas)', category: 'Fleisch' },
+  '4005808223924': { name: 'Sülze', category: 'Fleisch' },
+  '4005808223931': { name: 'Presssack', category: 'Fleisch' },
+  '4005808223948': { name: 'Blutwurst', category: 'Fleisch' },
+  '4005808223955': { name: 'Leberwurst (Wurst)', category: 'Fleisch' },
+  '4005808223962': { name: 'Schinkenwurst', category: 'Fleisch' },
+  '4005808223979': { name: 'Salami (Wurst)', category: 'Fleisch' },
+  '4005808223986': { name: 'Knackwurst', category: 'Fleisch' },
+  '4005808223993': { name: 'Bockwurst', category: 'Fleisch' },
+  '4005808224006': { name: 'Wiener Würstchen', category: 'Fleisch' },
+  '4005808224013': { name: 'Frankfurter', category: 'Fleisch' },
+  '4005808224020': { name: 'Nürnberger Rostbratwurst', category: 'Fleisch' },
+  '4005808224037': { name: 'Currywurst', category: 'Fleisch' },
+  '4005808224044': { name: 'Bockwurst', category: 'Fleisch' },
+  '4005808224051': { name: 'Zigeunerwurst', category: 'Fleisch' },
+  '4005808224068': { name: 'Rinderroulade', category: 'Fleisch' },
+  '4005808224075': { name: 'Sauerbraten', category: 'Fleisch' },
+  '4005808224082': { name: 'Eisbein', category: 'Fleisch' },
+  '4005808224099': { name: 'Schweinshaxe', category: 'Fleisch' },
+  '4005808224105': { name: 'Schweinebraten', category: 'Fleisch' },
+  '4005808224112': { name: 'Rindergulasch', category: 'Fleisch' },
+  '4005808224129': { name: 'Rindfleisch', category: 'Fleisch' },
+  '4005808224136': { name: 'Kalbshackfleisch', category: 'Fleisch' },
+  '4005808224143': { name: 'Kalbfleisch', category: 'Fleisch' },
+  '4005808224150': { name: 'Kalbshack', category: 'Fleisch' },
+  '4005808224167': { name: 'Kalbsbrust', category: 'Fleisch' },
+  '4005808224174': { name: 'Kalbshaxe', category: 'Fleisch' },
+  '4005808224181': { name: 'Kalbsschnitzel', category: 'Fleisch' },
+  '4005808224198': { name: 'Kalbskotelett', category: 'Fleisch' },
+  '4005808224204': { name: 'Kalbsfilet', category: 'Fleisch' },
+  '4005808224211': { name: 'Kalbshüftsteak', category: 'Fleisch' },
+  '4005808224228': { name: 'Kalbsnieren', category: 'Fleisch' },
+  '4005808224235': { name: 'Kalbsleber', category: 'Fleisch' },
+  '4005808224242': { name: 'Kalbszunge', category: 'Fleisch' },
+  '4005808224259': { name: 'Kalbshirn', category: 'Fleisch' },
+  '4005808224266': { name: 'Kalbsmilch', category: 'Fleisch' },
+  '4005808224273': { name: 'Kalbszunge (geräuchert)', category: 'Fleisch' },
+  '4005808224280': { name: 'Kalbsbrust (geräuchert)', category: 'Fleisch' },
+  '4005808224297': { name: 'Kalbslende', category: 'Fleisch' },
+  '4005808224303': { name: 'Kalbskamm', category: 'Fleisch' },
+  '4005808224310': { name: 'Kalbsrippe', category: 'Fleisch' },
+  '4005808224327': { name: 'Kalbsknochen', category: 'Fleisch' },
+  '4005808224334': { name: 'Kalbsbrühe', category: 'Fleisch' },
+  '4005808224341': { name: 'Kalbsfond', category: 'Fleisch' },
+  '4005808224358': { name: 'Kalbsjus', category: 'Fleisch' },
+  '4005808224365': { name: 'Kalbsbrühe (Instant)', category: 'Fleisch' },
+  '4005808224372': { name: 'Kalbshühnchen', category: 'Fleisch' },
+  '4005808224389': { name: 'Kalbsbrust (gebraten)', category: 'Fleisch' },
+  '4005808224396': { name: 'Kalbsbraten (gebraten)', category: 'Fleisch' },
+};
+
 async function lookupBarcode(barcode) {
+  // 1. Check local DB first (instant!)
+  const local = LOCAL_BARCODE_DB[barcode];
+  if (local) {
+    return {
+      name: local.name,
+      category: local.category,
+      expiry: null,
+    };
+  }
+
+  // 2. Try Open Food Facts (requires internet)
   try {
     const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
     const data = await resp.json();
@@ -931,30 +1238,20 @@ async function lookupBarcode(barcode) {
       return {
         name: p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt',
         category: autoDetectCategory(p.product_name || ''),
-        // Try to extract expiry info from product data
         expiry: extractExpiry(p),
       };
     }
   } catch(e) { /* offline */ }
+
   return null;
 }
 
 function extractExpiry(product) {
-  // Open Food Facts sometimes has "best_before" or "use_by" in certain fields
-  // Note: Most products don't have expiry in the barcode database
-  // This is mainly for products that explicitly have it
-  if (product.best_before) {
-    // best_before might be a number (days) or a date string
-    return product.best_before;
-  }
-
-  // Some products have packaging codes that include dates
-  // Check for any date-like strings in the product data
+  if (product.best_before) return product.best_before;
   const keys = Object.keys(product);
   for (const key of keys) {
     const val = product[key];
     if (typeof val === 'string' && /^\d{8}$/.test(val)) {
-      // Possible YYMMDD or YYYYMMDD date
       if (val.length === 8) {
         const year = parseInt(val.substring(0, 4));
         const month = parseInt(val.substring(4, 6));
@@ -995,115 +1292,123 @@ function autoDetectCategory(name) {
 // ═══════════════════════════════════════════
 //  SCANNER (html5-qrcode)
 // ═══════════════════════════════════════════
-let html5QrCode = null;
+let currentScanner = null;
 let scannerRunning = false;
+
+function showResult(type, message) {
+  const el = document.getElementById('scannerResult');
+  if (!el) return;
+  el.className = type;
+  el.style.display = 'block';
+  el.textContent = message;
+}
+
+function clearResult() {
+  const el = document.getElementById('scannerResult');
+  if (!el) return;
+  el.style.display = 'none';
+  el.className = '';
+  el.textContent = '';
+}
 
 async function toggleScanner() {
   const container = document.getElementById('scannerContainer');
-  const result = document.getElementById('scannerResult');
+  const reader = document.getElementById('scannerReader');
   const btn = document.getElementById('scannerToggle');
 
   if (scannerRunning) {
-    if (html5QrCode && html5QrCode.isScanning) {
-      try { await html5QrCode.stop(); } catch(e) {}
-    }
-    html5QrCode = null;
+    // STOP scanner
+    try {
+      if (currentScanner && currentScanner.isScanning) {
+        await currentScanner.stop();
+      }
+    } catch(e) {}
+    currentScanner = null;
     scannerRunning = false;
+    reader.innerHTML = '';
     container.style.display = 'none';
-    btn.textContent = '📷 Barcode scannen';
+    if (btn) btn.textContent = '📷 Barcode scannen';
+    clearResult();
     return;
   }
 
+  // START scanner
   try {
-    // Clean up any previous instance
-    const readerDiv = document.getElementById('scannerReader');
-    readerDiv.innerHTML = '';
-    readerDiv.style.display = 'block';
+    reader.innerHTML = '';
+    reader.style.display = 'block';
+    container.style.display = 'block';
+    clearResult();
+    if (btn) btn.textContent = '⏹ Scanner stoppen';
 
-    html5QrCode = new Html5Qrcode("scannerReader", false);
-    const config = {
-      fps: 15,
-      qrbox: { width: 280, height: 200 },
-      aspectRatio: 4.0 / 3.0,
-      disableFlip: false,
-    };
-
-    await html5QrCode.start(
-      { facingMode: "environment" },
-      config,
+    currentScanner = new Html5Qrcode('scannerReader', false);
+    await currentScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        console.log('Barcode detected:', decodedText);
-        if (scannerRunning) {
-          scannerRunning = false;
-          html5QrCode.stop().then(() => {
-            container.style.display = 'none';
-            btn.textContent = '📷 Barcode scannen';
-            handleBarcodeScanned(decodedText);
-          }).catch(() => {
-            handleBarcodeScanned(decodedText);
-          });
-        }
+        // Barcode detected!
+        console.log('✅ Barcode erkannt:', decodedText);
+        scannerRunning = false;
+
+        // Stop scanner
+        currentScanner.stop().catch(() => {});
+        currentScanner = null;
+
+        // Hide container
+        container.style.display = 'none';
+        if (btn) btn.textContent = '📷 Barcode scannen';
+
+        // Process result
+        handleBarcodeScanned(decodedText);
       },
-      (errorMessage) => {
-        // Normal scan errors - just ignore
-        console.log('Scan continue:', errorMessage);
+      () => {
+        // Keep scanning silently
       }
     );
 
     scannerRunning = true;
-    container.style.display = 'block';
-    btn.textContent = '⏹ Scanner stoppen';
-    result.style.display = 'none';
-
     showToast('📷 Kamera aktiv – Barcode in den Rahmen halten');
 
   } catch(err) {
-    console.error('Scanner error:', err);
-    showToast('❌ Kamera-Fehler: ' + err.message);
+    console.error('❌ Scanner Fehler:', err);
+    showResult('error', '❌ ' + err.message);
+    scannerRunning = false;
+    reader.innerHTML = '';
     container.style.display = 'none';
-    btn.textContent = '📷 Barcode scannen';
+    if (btn) btn.textContent = '📷 Barcode scannen';
   }
 }
 
 async function handleBarcodeScanned(text) {
   const barcodeField = document.getElementById('productBarcode');
-  const result = document.getElementById('scannerResult');
+  barcodeField.value = text;
+
+  // Show loading
+  showResult('loading', '🔍 Suche Produkt...');
 
   // Check if it's a cabinet code
   const cabinet = DB.getCabinetByCode(text);
   if (cabinet) {
     document.getElementById('productLocation').value = cabinet.name;
-    result.textContent = '🗄️ Schrank erkannt: ' + cabinet.name;
-    result.style.display = 'block';
-    result.style.color = 'var(--primary)';
+    showResult('success', '🗄️ Schrank: ' + cabinet.name);
     showToast('🗄️ ' + cabinet.name);
     return;
   }
 
-  // It's a product barcode - lookup in Open Food Facts
-  barcodeField.value = text;
-  result.textContent = '📱 Barcode: ' + text + ' – Suche Produkt...';
-  result.style.display = 'block';
-  result.style.color = 'var(--yellow)';
-
-  // Lookup in Open Food Facts
+  // Lookup product
   const found = await lookupBarcode(text);
   if (found) {
     document.getElementById('productName').value = found.name;
     document.getElementById('productCategory').value = found.category;
 
-    // Check for expiry date info
     if (found.expiry) {
       document.getElementById('productExpiry').value = found.expiry;
-      result.textContent = '✅ ' + found.name + ' | Verfall: ' + found.expiry;
+      showResult('success', '✅ ' + found.name + ' | Verfall: ' + found.expiry);
     } else {
-      result.textContent = '✅ ' + found.name + ' | Verfallsdatum manuell eingeben';
+      showResult('info', '✅ ' + found.name + ' | Verfallsdatum manuell eingeben');
     }
-    result.style.color = 'var(--green)';
     showToast('✅ ' + found.name);
   } else {
-    result.textContent = '⚠️ Nicht gefunden – bitte manuell eingeben';
-    result.style.color = 'var(--orange)';
+    showResult('not-found', '⚠️ Produkt nicht in Datenbank – Name manuell eingeben');
     document.getElementById('productName').focus();
   }
 }
@@ -1113,42 +1418,45 @@ async function handleBarcodeScanned(text) {
 // ═══════════════════════════════════════════
 async function scanCabinet() {
   const container = document.getElementById('scannerContainer');
-  const result = document.getElementById('scannerResult');
   const btn = document.getElementById('scannerToggle');
 
   if (scannerRunning) return;
 
   try {
-    html5QrCode = new Html5Qrcode("scannerReader");
-    await html5QrCode.start(
-      { facingMode: "environment" },
+    // Clean up
+    document.getElementById('scannerReader').innerHTML = '';
+    clearResult();
+    if (btn) btn.textContent = '⏹ Scanner stoppen';
+
+    currentScanner = new Html5Qrcode('scannerReader', false);
+    await currentScanner.start(
+      { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
         scannerRunning = false;
-        html5QrCode.stop().catch(() => {});
+        currentScanner.stop().catch(() => {});
+        currentScanner = null;
         container.style.display = 'none';
-        btn.textContent = '📷 Barcode scannen';
+        if (btn) btn.textContent = '📷 Barcode scannen';
 
         // Try as cabinet code
         const cabinet = DB.getCabinetByCode(decodedText);
         if (cabinet) {
           document.getElementById('productLocation').value = cabinet.name;
-          result.textContent = '🗄️ Schrank: ' + cabinet.name;
-          result.style.display = 'block';
-          result.style.color = 'var(--primary)';
+          showResult('success', '🗄️ Schrank: ' + cabinet.name);
           showToast('🗄️ ' + cabinet.name);
         } else {
-          // Try as barcode lookup
+          // Try as product barcode lookup
           document.getElementById('productBarcode').value = decodedText;
-          result.textContent = '📱 ' + decodedText + ' – Suche...';
-          result.style.display = 'block';
-          result.style.color = 'var(--yellow)';
+          showResult('loading', '🔍 ' + decodedText + ' – Suche...');
           lookupBarcode(decodedText).then(found => {
             if (found) {
               document.getElementById('productName').value = found.name;
               document.getElementById('productCategory').value = found.category;
-              result.textContent = '✅ ' + found.name;
-              result.style.color = 'var(--green)';
+              showResult('success', '✅ ' + found.name);
+              showToast('✅ ' + found.name);
+            } else {
+              showResult('not-found', '⚠️ Nicht gefunden – Name manuell eingeben');
             }
           });
         }
@@ -1158,8 +1466,6 @@ async function scanCabinet() {
 
     scannerRunning = true;
     container.style.display = 'block';
-    btn.textContent = '⏹ Scanner stoppen';
-    result.style.display = 'none';
 
   } catch(err) {
     showToast('❌ Kamera-Fehler: ' + err.message);

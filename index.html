@@ -24,6 +24,9 @@
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
+/* Don't break scanner elements */
+* { -webkit-user-select: text; user-select: text; }
+video, canvas, img, #scannerReader * { max-width: 100% !important; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -304,12 +307,27 @@ body {
 
 /* ── SCANNER ── */
 .scanner-container {
-  width: 100%; aspect-ratio: 4/3; max-width: 400px;
-  margin: 0 auto 16px; background: #000;
-  border-radius: var(--radius); overflow: hidden;
+  width: 100%;
+  margin: 0 auto 16px;
+  border-radius: var(--radius);
   display: none;
 }
-#scannerReader { width: 100%; height: 100%; }
+#scannerReader {
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden !important;
+}
+#scannerReader video {
+  width: 100% !important;
+  height: auto !important;
+  display: block !important;
+}
+/* Override library UI buttons */
+#scannerReader #html5-qrcode-button-camera-permission,
+#scannerReader #html5-qrcode-button-camera-switch,
+#scannerReader #html5-qrcode-anchor-different-scan {
+  display: none !important;
+}
 #scannerResult {
   text-align: center; padding: 10px; font-size: .85rem; color: var(--green);
   background: rgba(46,204,113,.1); border-radius: var(--radius-sm); margin-top: 8px;
@@ -928,9 +946,40 @@ async function lookupBarcode(barcode) {
       return {
         name: p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt',
         category: autoDetectCategory(p.product_name || ''),
+        // Try to extract expiry info from product data
+        expiry: extractExpiry(p),
       };
     }
   } catch(e) { /* offline */ }
+  return null;
+}
+
+function extractExpiry(product) {
+  // Open Food Facts sometimes has "best_before" or "use_by" in certain fields
+  // Note: Most products don't have expiry in the barcode database
+  // This is mainly for products that explicitly have it
+  if (product.best_before) {
+    // best_before might be a number (days) or a date string
+    return product.best_before;
+  }
+
+  // Some products have packaging codes that include dates
+  // Check for any date-like strings in the product data
+  const keys = Object.keys(product);
+  for (const key of keys) {
+    const val = product[key];
+    if (typeof val === 'string' && /^\d{8}$/.test(val)) {
+      // Possible YYMMDD or YYYYMMDD date
+      if (val.length === 8) {
+        const year = parseInt(val.substring(0, 4));
+        const month = parseInt(val.substring(4, 6));
+        const day = parseInt(val.substring(6, 8));
+        if (year > 2000 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return val.substring(0, 4) + '-' + val.substring(4, 6) + '-' + val.substring(6, 8);
+        }
+      }
+    }
+  }
   return null;
 }
 
@@ -970,7 +1019,6 @@ async function toggleScanner() {
   const btn = document.getElementById('scannerToggle');
 
   if (scannerRunning) {
-    // Stop scanner
     if (html5QrCode && html5QrCode.isScanning) {
       try { await html5QrCode.stop(); } catch(e) {}
     }
@@ -982,26 +1030,38 @@ async function toggleScanner() {
   }
 
   try {
-    html5QrCode = new Html5Qrcode("scannerReader");
+    // Clean up any previous instance
+    const readerDiv = document.getElementById('scannerReader');
+    readerDiv.innerHTML = '';
+    readerDiv.style.display = 'block';
+
+    html5QrCode = new Html5Qrcode("scannerReader", false);
     const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 150 },
-      aspectRatio: 1.0,
+      fps: 15,
+      qrbox: { width: 280, height: 200 },
+      aspectRatio: 4.0 / 3.0,
+      disableFlip: false,
     };
 
     await html5QrCode.start(
       { facingMode: "environment" },
       config,
       (decodedText) => {
-        // Barcode detected!
-        scannerRunning = false;
-        html5QrCode.stop().catch(() => {});
-        container.style.display = 'none';
-        btn.textContent = '📷 Barcode scannen';
-        handleBarcodeScanned(decodedText);
+        console.log('Barcode detected:', decodedText);
+        if (scannerRunning) {
+          scannerRunning = false;
+          html5QrCode.stop().then(() => {
+            container.style.display = 'none';
+            btn.textContent = '📷 Barcode scannen';
+            handleBarcodeScanned(decodedText);
+          }).catch(() => {
+            handleBarcodeScanned(decodedText);
+          });
+        }
       },
       (errorMessage) => {
-        // Scan error - ignore
+        // Normal scan errors - just ignore
+        console.log('Scan continue:', errorMessage);
       }
     );
 
@@ -1010,7 +1070,10 @@ async function toggleScanner() {
     btn.textContent = '⏹ Scanner stoppen';
     result.style.display = 'none';
 
+    showToast('📷 Kamera aktiv – Barcode in den Rahmen halten');
+
   } catch(err) {
+    console.error('Scanner error:', err);
     showToast('❌ Kamera-Fehler: ' + err.message);
     container.style.display = 'none';
     btn.textContent = '📷 Barcode scannen';
@@ -1032,9 +1095,9 @@ async function handleBarcodeScanned(text) {
     return;
   }
 
-  // It's a product barcode
+  // It's a product barcode - lookup in Open Food Facts
   barcodeField.value = text;
-  result.textContent = '📱 Barcode: ' + text + ' – Suche...';
+  result.textContent = '📱 Barcode: ' + text + ' – Suche Produkt...';
   result.style.display = 'block';
   result.style.color = 'var(--yellow)';
 
@@ -1043,7 +1106,14 @@ async function handleBarcodeScanned(text) {
   if (found) {
     document.getElementById('productName').value = found.name;
     document.getElementById('productCategory').value = found.category;
-    result.textContent = '✅ Produkt gefunden: ' + found.name;
+
+    // Check for expiry date info
+    if (found.expiry) {
+      document.getElementById('productExpiry').value = found.expiry;
+      result.textContent = '✅ ' + found.name + ' | Verfall: ' + found.expiry;
+    } else {
+      result.textContent = '✅ ' + found.name + ' | Verfallsdatum manuell eingeben';
+    }
     result.style.color = 'var(--green)';
     showToast('✅ ' + found.name);
   } else {

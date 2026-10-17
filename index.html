@@ -151,6 +151,7 @@ body {
 .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 .btn-block { width: 100%; }
 .btn-sm { padding: 8px 14px; font-size: .8rem; }
+.btn-xs { padding: 5px 10px; font-size: .72rem; }
 
 /* ── MODAL ── */
 .modal-overlay {
@@ -303,22 +304,17 @@ body {
 
 /* ── SCANNER ── */
 .scanner-container {
-  width: 100%; aspect-ratio: 1; max-width: 300px;
+  width: 100%; aspect-ratio: 4/3; max-width: 400px;
   margin: 0 auto 16px; background: #000;
   border-radius: var(--radius); overflow: hidden;
-  position: relative; display: none;
+  display: none;
 }
-.scanner-container video { width: 100%; height: 100%; object-fit: cover; }
-.scanner-overlay {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+#scannerReader { width: 100%; height: 100%; }
+#scannerResult {
+  text-align: center; padding: 10px; font-size: .85rem; color: var(--green);
+  background: rgba(46,204,113,.1); border-radius: var(--radius-sm); margin-top: 8px;
+  display: none;
 }
-.scanner-line {
-  width: 80%; height: 2px; background: var(--primary);
-  animation: scanLine 2s ease-in-out infinite;
-  box-shadow: 0 0 10px var(--primary);
-}
-@keyframes scanLine { 0%,100% { transform: translateY(-60px); } 50% { transform: translateY(60px); } }
 
 /* ── LOCATION TAG ── */
 .location-tag {
@@ -377,6 +373,28 @@ body {
 .detail-field-value { font-size: .95rem; font-weight: 600; margin-top: 4px; }
 .detail-edit-row { display: flex; gap: 8px; margin-top: 16px; }
 .detail-edit-row .btn { flex: 1; }
+
+/* ── CABINET CARD ── */
+.cabinet-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 12px;
+}
+.cabinet-code {
+  font-family: monospace; font-size: .8rem; padding: 4px 10px;
+  background: var(--surface2); border-radius: 6px; color: var(--primary);
+  font-weight: 700; letter-spacing: 1px;
+}
+.cabinet-info { flex: 1; }
+.cabinet-name { font-weight: 600; font-size: .9rem; }
+.cabinet-count { font-size: .75rem; color: var(--text2); }
+
+/* ── QR CODE PREVIEW ── */
+.qr-preview {
+  width: 150px; height: 150px; background: #fff; border-radius: var(--radius-sm);
+  margin: 10px auto; display: flex; align-items: center; justify-content: center;
+}
+.qr-preview canvas, .qr-preview img { max-width: 100%; max-height: 100%; }
 
 /* ── RESPONSIVE ── */
 @media (min-width: 600px) {
@@ -500,6 +518,7 @@ body {
 <!-- ═══ INNER NAV ═══ -->
 <div class="tab-bar" id="tabBar">
   <button class="tab-btn active" data-tab="pantry" onclick="switchTab('pantry')">🏠 Vorrat</button>
+  <button class="tab-btn" data-tab="cabinets" onclick="switchTab('cabinets')">🗄️ Schränke</button>
   <button class="tab-btn" data-tab="categories" onclick="switchTab('categories')">🗂️ Kategorien</button>
   <button class="tab-btn" data-tab="recipes" onclick="switchTab('recipes')">🍳 Rezepte</button>
   <button class="tab-btn" data-tab="weekplan" onclick="switchTab('weekplan')">📅 Wochenplan</button>
@@ -523,8 +542,8 @@ body {
       <div class="stat-label">Abgelaufen</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value" id="statCategories">0</div>
-      <div class="stat-label">Kategorien</div>
+      <div class="stat-value" id="statCabinets">0</div>
+      <div class="stat-label">Schränke</div>
     </div>
   </div>
 
@@ -541,6 +560,19 @@ body {
 
   <!-- Product List -->
   <div id="productList"></div>
+</div>
+
+<!-- ═══ CABINETS TAB ═══ -->
+<div class="tab-content" id="tab-cabinets">
+  <div class="section-header">
+    <h2>🗄️ Schränke / Orte</h2>
+    <button class="btn btn-primary btn-sm" onclick="showAddCabinet()">+ Neuer Schrank</button>
+  </div>
+  <div class="search-bar" style="margin-bottom:14px">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="cabinetSearch" placeholder="Schränk suchen..." oninput="renderCabinets()">
+  </div>
+  <div id="cabinetList"></div>
 </div>
 
 <!-- ═══ CATEGORIES TAB ═══ -->
@@ -593,15 +625,7 @@ body {
 
   <div style="margin-top:24px">
     <div class="section-header">
-      <h2>🗄️ Schränke / Orte</h2>
-      <button class="btn btn-secondary btn-sm" onclick="showAddLocation()">+ Hinzufügen</button>
-    </div>
-    <div id="locationList"></div>
-  </div>
-
-  <div style="margin-top:24px">
-    <div class="section-header">
-      <h2>📊 Daten</h2>
+      <h2>🗑️ Daten</h2>
     </div>
     <button class="btn btn-danger btn-block" onclick="clearAllData()" style="margin-top:8px">🗑️ Alle Daten löschen</button>
   </div>
@@ -624,15 +648,15 @@ body {
     <input type="hidden" id="editProductId">
 
     <!-- Scanner Button -->
-    <div style="text-align:center;margin-bottom:14px">
+    <div style="text-align:center;margin-bottom:8px">
       <button class="btn btn-secondary btn-sm" onclick="toggleScanner()" id="scannerToggle">
         📷 Barcode scannen
       </button>
     </div>
     <div class="scanner-container" id="scannerContainer">
-      <video id="scannerVideo" autoplay playsinline></video>
-      <div class="scanner-overlay"><div class="scanner-line"></div></div>
+      <div id="scannerReader"></div>
     </div>
+    <div id="scannerResult"></div>
     <input type="hidden" id="barcodeValue">
 
     <div class="form-group">
@@ -641,7 +665,10 @@ body {
     </div>
     <div class="form-group">
       <label>Barcode (optional)</label>
-      <input type="text" class="form-input" id="productBarcode" placeholder="z.B. 4006381333915">
+      <div style="display:flex;gap:6px">
+        <input type="text" class="form-input" id="productBarcode" placeholder="z.B. 4006381333915" style="flex:1">
+        <button class="btn btn-secondary btn-sm" onclick="scanCabinet()" title="Schränk-Barcode scannen">🗄️</button>
+      </div>
     </div>
     <div class="form-group">
       <label>Kategorie</label>
@@ -708,6 +735,43 @@ body {
   </div>
 </div>
 
+<!-- ═══ CABINET MODAL ═══ -->
+<div class="modal-overlay" id="cabinetModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="cabinetModalTitle">Neuer Schrank</h2>
+    <input type="hidden" id="editCabinetId">
+    <div class="form-group">
+      <label>Name *</label>
+      <input type="text" class="form-input" id="cabinetName" placeholder="z.B. Küchenschrank oben">
+    </div>
+    <div class="form-group">
+      <label>Code (6-stellig)</label>
+      <input type="text" class="form-input" id="cabinetCode" maxlength="6" placeholder="z.B. A1B2C3" style="text-transform:uppercase;font-family:monospace;letter-spacing:3px;font-size:1.1rem">
+    </div>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Der Code wird als QR-Code angezeigt – druck ihn aus und kleb ihn an den Schrank.</p>
+    <div id="cabinetQR" class="qr-preview" style="display:none"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('cabinetModal')">Abbrechen</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveCabinet()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CABINET VIEW MODAL ═══ -->
+<div class="modal-overlay" id="cabinetViewModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="cabinetViewName">Schränk</h2>
+    <div id="cabinetViewQR" class="qr-preview" style="margin:16px auto"></div>
+    <div class="cabinet-code" id="cabinetViewCode" style="display:inline-block;margin:0 auto 16px"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('cabinetViewModal')">Schließen</button>
+      <button class="btn btn-primary" id="cabinetViewPrintBtn">🖨️ Drucken</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ CONFIRM DIALOG ═══ -->
 <div class="confirm-dialog" id="confirmDialog">
   <div class="confirm-box">
@@ -724,6 +788,9 @@ body {
   <button class="nav-item active" data-tab="pantry" onclick="switchTab('pantry')">
     <span class="nav-icon">🏠</span>Vorrat
   </button>
+  <button class="nav-item" data-tab="cabinets" onclick="switchTab('cabinets')">
+    <span class="nav-icon">🗄️</span>Schränke
+  </button>
   <button class="nav-item" data-tab="categories" onclick="switchTab('categories')">
     <span class="nav-icon">🗂️</span>Kategorien
   </button>
@@ -738,6 +805,11 @@ body {
   </button>
 </div>
 
+<!-- ═══ QR CODE LIBRARY ═══ -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- ═══ BARCODE SCANNER LIBRARY ═══ -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
 <script>
 // ═══════════════════════════════════════════
 //  DATABASE (localStorage)
@@ -745,11 +817,13 @@ body {
 const DB = {
   products: JSON.parse(localStorage.getItem('kv_products') || '[]'),
   locations: JSON.parse(localStorage.getItem('kv_locations') || '["Kühlschrank","Küchenschrank","Vorratsraum","Eingemachtes","Obstschale","Tiefkühler"]'),
+  cabinets: JSON.parse(localStorage.getItem('kv_cabinets') || '[]'),
   appliances: JSON.parse(localStorage.getItem('kv_appliances') || '["backofen","herd","mikrowelle","toaster","kaffeemaschine","mixer","waffeleisen"]'),
   weekPlan: JSON.parse(localStorage.getItem('kv_weekplan') || 'null'),
 
   saveProducts() { localStorage.setItem('kv_products', JSON.stringify(this.products)); },
   saveLocations() { localStorage.setItem('kv_locations', JSON.stringify(this.locations)); },
+  saveCabinets() { localStorage.setItem('kv_cabinets', JSON.stringify(this.cabinets)); },
   saveAppliances() { localStorage.setItem('kv_appliances', JSON.stringify(this.appliances)); },
   saveWeekPlan() { localStorage.setItem('kv_weekplan', JSON.stringify(this.weekPlan)); },
 
@@ -758,9 +832,33 @@ const DB = {
   deleteProduct(id) { this.products = this.products.filter(p=>p.id!==id); this.saveProducts(); },
   getProduct(id) { return this.products.find(p=>p.id===id); },
 
+  addCabinet(c) {
+    c.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    c.code = c.code || generateCabinetCode();
+    this.cabinets.push(c);
+    if (!this.locations.includes(c.name)) {
+      this.locations.push(c.name);
+      this.saveLocations();
+    }
+    this.saveCabinets();
+    return c;
+  },
+  updateCabinet(id, data) { const idx = this.cabinets.findIndex(c=>c.id===id); if(idx>=0) { Object.assign(this.cabinets[idx], data); this.saveCabinets(); } },
+  deleteCabinet(id) { this.cabinets = this.cabinets.filter(c=>c.id!==id); this.saveCabinets(); },
+  getCabinet(id) { return this.cabinets.find(c=>c.id===id); },
+  getCabinetByCode(code) { return this.cabinets.find(c => c.code.toUpperCase() === code.toUpperCase()); },
+  getCabinets() { return this.cabinets; },
+
   addLocation(loc) { if(!this.locations.includes(loc)) { this.locations.push(loc); this.saveLocations(); } },
   removeLocation(loc) { this.locations = this.locations.filter(l=>l!==loc); this.saveLocations(); },
 };
+
+function generateCabinetCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
 
 // ═══════════════════════════════════════════
 //  CATEGORY EMOJI MAP
@@ -861,70 +959,198 @@ function autoDetectCategory(name) {
 }
 
 // ═══════════════════════════════════════════
-//  SCANNER
+//  SCANNER (html5-qrcode)
 // ═══════════════════════════════════════════
-let scannerStream = null;
+let html5QrCode = null;
+let scannerRunning = false;
 
 async function toggleScanner() {
   const container = document.getElementById('scannerContainer');
+  const result = document.getElementById('scannerResult');
   const btn = document.getElementById('scannerToggle');
 
-  if (scannerStream) {
-    // Stop
-    scannerStream.getTracks().forEach(t=>t.stop());
-    scannerStream = null;
+  if (scannerRunning) {
+    // Stop scanner
+    if (html5QrCode && html5QrCode.isScanning) {
+      try { await html5QrCode.stop(); } catch(e) {}
+    }
+    html5QrCode = null;
+    scannerRunning = false;
     container.style.display = 'none';
     btn.textContent = '📷 Barcode scannen';
     return;
   }
 
   try {
-    scannerStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
-    });
-    const video = document.getElementById('scannerVideo');
-    video.srcObject = scannerStream;
+    html5QrCode = new Html5Qrcode("scannerReader");
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 150 },
+      aspectRatio: 1.0,
+    };
+
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      config,
+      (decodedText) => {
+        // Barcode detected!
+        scannerRunning = false;
+        html5QrCode.stop().catch(() => {});
+        container.style.display = 'none';
+        btn.textContent = '📷 Barcode scannen';
+        handleBarcodeScanned(decodedText);
+      },
+      (errorMessage) => {
+        // Scan error - ignore
+      }
+    );
+
+    scannerRunning = true;
     container.style.display = 'block';
     btn.textContent = '⏹ Scanner stoppen';
+    result.style.display = 'none';
 
-    // Simulated barcode entry (since we can't usezxing easily in one file)
-    // User can manually enter or paste barcode
-    const input = document.getElementById('barcodeValue');
-    const code = prompt('Barcode eingeben oder einfügen:');
-    if (code) {
-      input.value = code;
-      document.getElementById('productBarcode').value = code;
-      const found = await lookupBarcode(code);
-      if (found) {
-        document.getElementById('productName').value = found.name;
-        document.getElementById('productCategory').value = found.category;
-        showToast('✅ Produkt gefunden: ' + found.name);
-      } else {
-        showToast('⚠️ Produkt nicht gefunden – bitte manuell eingeben');
-      }
-    }
-    // Stop scanner after use
-    scannerStream.getTracks().forEach(t=>t.stop());
-    scannerStream = null;
+  } catch(err) {
+    showToast('❌ Kamera-Fehler: ' + err.message);
     container.style.display = 'none';
     btn.textContent = '📷 Barcode scannen';
-
-  } catch(e) {
-    // Fallback: manual input
-    const code = prompt('Barcode eingeben (oder abbrechen):');
-    if (code) {
-      document.getElementById('barcodeValue').value = code;
-      document.getElementById('productBarcode').value = code;
-      const found = await lookupBarcode(code);
-      if (found) {
-        document.getElementById('productName').value = found.name;
-        document.getElementById('productCategory').value = found.category;
-        showToast('✅ Produkt gefunden: ' + found.name);
-      } else {
-        showToast('⚠️ Nicht gefunden – manuell eingeben');
-      }
-    }
   }
+}
+
+async function handleBarcodeScanned(text) {
+  const barcodeField = document.getElementById('productBarcode');
+  const result = document.getElementById('scannerResult');
+
+  // Check if it's a cabinet code
+  const cabinet = DB.getCabinetByCode(text);
+  if (cabinet) {
+    document.getElementById('productLocation').value = cabinet.name;
+    result.textContent = '🗄️ Schrank erkannt: ' + cabinet.name;
+    result.style.display = 'block';
+    result.style.color = 'var(--primary)';
+    showToast('🗄️ ' + cabinet.name);
+    return;
+  }
+
+  // It's a product barcode
+  barcodeField.value = text;
+  result.textContent = '📱 Barcode: ' + text + ' – Suche...';
+  result.style.display = 'block';
+  result.style.color = 'var(--yellow)';
+
+  // Lookup in Open Food Facts
+  const found = await lookupBarcode(text);
+  if (found) {
+    document.getElementById('productName').value = found.name;
+    document.getElementById('productCategory').value = found.category;
+    result.textContent = '✅ Produkt gefunden: ' + found.name;
+    result.style.color = 'var(--green)';
+    showToast('✅ ' + found.name);
+  } else {
+    result.textContent = '⚠️ Nicht gefunden – bitte manuell eingeben';
+    result.style.color = 'var(--orange)';
+    document.getElementById('productName').focus();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  CABINET SCANNER (for scanning cabinet QR codes)
+// ═══════════════════════════════════════════
+async function scanCabinet() {
+  const container = document.getElementById('scannerContainer');
+  const result = document.getElementById('scannerResult');
+  const btn = document.getElementById('scannerToggle');
+
+  if (scannerRunning) return;
+
+  try {
+    html5QrCode = new Html5Qrcode("scannerReader");
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        scannerRunning = false;
+        html5QrCode.stop().catch(() => {});
+        container.style.display = 'none';
+        btn.textContent = '📷 Barcode scannen';
+
+        // Try as cabinet code
+        const cabinet = DB.getCabinetByCode(decodedText);
+        if (cabinet) {
+          document.getElementById('productLocation').value = cabinet.name;
+          result.textContent = '🗄️ Schrank: ' + cabinet.name;
+          result.style.display = 'block';
+          result.style.color = 'var(--primary)';
+          showToast('🗄️ ' + cabinet.name);
+        } else {
+          // Try as barcode lookup
+          document.getElementById('productBarcode').value = decodedText;
+          result.textContent = '📱 ' + decodedText + ' – Suche...';
+          result.style.display = 'block';
+          result.style.color = 'var(--yellow)';
+          lookupBarcode(decodedText).then(found => {
+            if (found) {
+              document.getElementById('productName').value = found.name;
+              document.getElementById('productCategory').value = found.category;
+              result.textContent = '✅ ' + found.name;
+              result.style.color = 'var(--green)';
+            }
+          });
+        }
+      },
+      () => {}
+    );
+
+    scannerRunning = true;
+    container.style.display = 'block';
+    btn.textContent = '⏹ Scanner stoppen';
+    result.style.display = 'none';
+
+  } catch(err) {
+    showToast('❌ Kamera-Fehler: ' + err.message);
+  }
+}
+
+// ═══════════════════════════════════════════
+//  QR CODE GENERATION
+// ═══════════════════════════════════════════
+function generateQRCode(elementId, text) {
+  const el = document.getElementById(elementId);
+  if (!el || !window.QRCode) return;
+  el.innerHTML = '';
+  try {
+    const canvas = document.createElement('canvas');
+    QRCode.toCanvas(canvas, text, { width: 150, margin: 1 }, (error) => {
+      if (error) console.error(error);
+      el.appendChild(canvas);
+    });
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--text3);font-size:.8rem">QR nicht generierbar</p>';
+  }
+}
+
+function printCabinetQR(cabinet) {
+  const win = window.open('', '_blank');
+  if (!win) { showToast('❌ Pop-up blockiert'); return; }
+  win.document.write(`
+    <!DOCTYPE html>
+    <html><head><title>Schränk: ${escHtml(cabinet.name)}</title>
+    <style>
+      body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+             min-height:100vh; font-family:Arial,sans-serif; }
+      .name { font-size:24px; font-weight:bold; margin-bottom:10px; }
+      .code { font-size:18px; font-family:monospace; letter-spacing:4px; margin-bottom:15px; }
+      canvas { width:200px; height:200px; }
+      @media print { body { margin:0; } }
+    </style></head><body>
+    <div class="name">${escHtml(cabinet.name)}</div>
+    <div class="code">${escHtml(cabinet.code)}</div>
+    <div id="qr"></div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"><\/script>
+    <script>QRCode.toCanvas(document.getElementById('qr'), '${cabinet.code}', {width:200}, ()=>{setTimeout(()=>window.print(),300)});<\/script>
+    </body></html>
+  `);
+  win.document.close();
 }
 
 // ═══════════════════════════════════════════
@@ -933,6 +1159,12 @@ async function toggleScanner() {
 function switchTab(tab) {
   // Hide detail view
   document.getElementById('tab-detail').classList.remove('show');
+
+  // Stop scanner when switching tabs
+  if (scannerRunning) {
+    html5QrCode.stop().catch(() => {});
+    scannerRunning = false;
+  }
 
   // Tab bar
   document.querySelectorAll('.tab-btn, .nav-item').forEach(el => {
@@ -946,6 +1178,7 @@ function switchTab(tab) {
 
   // Refresh data
   if (tab === 'pantry') renderPantry();
+  if (tab === 'cabinets') renderCabinets();
   if (tab === 'categories') renderCategories();
   if (tab === 'recipes') renderRecipes();
   if (tab === 'weekplan') renderWeekPlan();
@@ -1024,7 +1257,7 @@ function renderPantry() {
   document.getElementById('statTotal').textContent = DB.products.length;
   document.getElementById('statExpiring').textContent = expiring;
   document.getElementById('statExpired').textContent = expired;
-  document.getElementById('statCategories').textContent = [...new Set(DB.products.map(p=>p.category))].length;
+  document.getElementById('statCabinets').textContent = DB.cabinets.length;
 
   // Filter pills
   const categories = [...new Set(DB.products.map(p=>p.category))].sort();
@@ -1074,24 +1307,140 @@ function renderPantry() {
 function changeQty(id, delta) {
   const p = DB.getProduct(id);
   if (!p) return;
-  // Try to parse numeric qty
   const match = String(p.quantity).match(/^([\d.,]+)(.*)/);
   if (match) {
     const num = parseFloat(match[1].replace(',', '.'));
-    const unit = match[2];
     p.quantity = (num + delta);
     if (p.quantity <= 0) {
       if (confirm('„'+p.name+'" löschen?')) {
         DB.deleteProduct(id);
       } else {
-        p.quantity = num; // revert
+        p.quantity = num;
       }
     } else {
-      p.quantity = p.quantity;
       DB.saveProducts();
     }
   }
   renderPantry();
+}
+
+// ═══════════════════════════════════════════
+//  CABINETS
+// ═══════════════════════════════════════════
+function renderCabinets() {
+  const search = document.getElementById('cabinetSearch').value.toLowerCase();
+  let cabinets = DB.cabinets;
+
+  if (search) {
+    cabinets = cabinets.filter(c =>
+      (c.name||'').toLowerCase().includes(search) ||
+      (c.code||'').toLowerCase().includes(search)
+    );
+  }
+
+  const list = document.getElementById('cabinetList');
+  if (cabinets.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗄️</div><p>Keine Schränke vorhanden.<br>Klicke "+ Neuer Schrank" zum Erstellen.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = cabinets.map(c => {
+    const count = DB.products.filter(p => p.location === c.name).length;
+    return `
+      <div class="cabinet-card">
+        <div class="cabinet-code">${escHtml(c.code)}</div>
+        <div class="cabinet-info">
+          <div class="cabinet-name">${escHtml(c.name)}</div>
+          <div class="cabinet-count">${count} Produkt${count!==1?'e':''}</div>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="viewCabinet('${c.id}')" title="QR anzeigen">📱</button>
+        <button class="btn btn-secondary btn-xs" onclick="editCabinet('${c.id}')" title="Bearbeiten">✏️</button>
+        <button class="btn btn-danger btn-xs" onclick="deleteCabinet('${c.id}')" title="Löschen">🗑️</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function viewCabinet(id) {
+  const c = DB.getCabinet(id);
+  if (!c) return;
+
+  document.getElementById('cabinetViewName').textContent = c.name;
+  document.getElementById('cabinetViewCode').textContent = c.code;
+  document.getElementById('cabinetViewPrintBtn').onclick = () => printCabinetQR(c);
+
+  generateQRCode('cabinetViewQR', c.code);
+  document.getElementById('cabinetViewModal').classList.add('show');
+}
+
+function showAddCabinet() {
+  document.getElementById('cabinetModalTitle').textContent = 'Neuer Schrank';
+  document.getElementById('editCabinetId').value = '';
+  document.getElementById('cabinetName').value = '';
+  document.getElementById('cabinetCode').value = '';
+  document.getElementById('cabinetQR').style.display = 'none';
+  document.getElementById('cabinetModal').classList.add('show');
+  setTimeout(() => document.getElementById('cabinetName').focus(), 300);
+}
+
+function editCabinet(id) {
+  const c = DB.getCabinet(id);
+  if (!c) return;
+
+  document.getElementById('cabinetModalTitle').textContent = 'Schränk bearbeiten';
+  document.getElementById('editCabinetId').value = id;
+  document.getElementById('cabinetName').value = c.name || '';
+  document.getElementById('cabinetCode').value = c.code || '';
+  generateQRCode('cabinetQR', c.code);
+  document.getElementById('cabinetQR').style.display = 'flex';
+  document.getElementById('cabinetModal').classList.add('show');
+}
+
+function saveCabinet() {
+  const name = document.getElementById('cabinetName').value.trim();
+  let code = document.getElementById('cabinetCode').value.trim().toUpperCase();
+
+  if (!name) { showToast('❌ Name fehlt!'); return; }
+  if (!code) code = generateCabinetCode();
+
+  // Validate code: only uppercase letters and digits, 6 chars
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    showToast('❌ Code muss 6 Zeichen (A-Z, 0-9) sein – automatisch generiert');
+    code = generateCabinetCode();
+    document.getElementById('cabinetCode').value = code;
+  }
+
+  // Check for duplicate code
+  const existing = DB.getCabinetByCode(code);
+  const editId = document.getElementById('editCabinetId').value;
+  if (existing && existing.id !== editId) {
+    showToast('❌ Code existiert bereits');
+    return;
+  }
+
+  const editId2 = document.getElementById('editCabinetId').value;
+  if (editId2) {
+    DB.updateCabinet(editId2, { name, code });
+    showToast('✅ Aktualisiert');
+  } else {
+    DB.addCabinet({ name, code });
+    showToast('✅ Hinzugefügt');
+  }
+
+  closeModal('cabinetModal');
+  renderCabinets();
+  renderPantry();
+}
+
+function deleteCabinet(id) {
+  const c = DB.getCabinet(id);
+  if (!c) return;
+  showConfirm(`Schränk „${c.name}" löschen?`, () => {
+    DB.deleteCabinet(id);
+    renderCabinets();
+    renderPantry();
+    showToast('🗑️ Gelöscht');
+  });
 }
 
 // ═══════════════════════════════════════════
@@ -1138,7 +1487,6 @@ function showDetail(id) {
     </div>
   `;
 
-  // Hide all tabs, show detail
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-detail').classList.add('show');
 }
@@ -1175,9 +1523,13 @@ function showAddProduct(editId) {
   const modal = document.getElementById('addProductModal');
   const title = document.getElementById('modalTitle');
 
-  // Fill locations
+  // Fill locations (including cabinets)
   const locSelect = document.getElementById('productLocation');
-  locSelect.innerHTML = DB.locations.map(l => `<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
+  const allLocations = [...new Set([
+    ...DB.locations,
+    ...DB.cabinets.map(c => c.name)
+  ])];
+  locSelect.innerHTML = allLocations.map(l => `<option value="${escHtml(l)}">${escHtml(l)}</option>`).join('');
 
   if (editId) {
     const p = DB.getProduct(editId);
@@ -1206,8 +1558,11 @@ function showAddProduct(editId) {
     document.getElementById('barcodeValue').value = '';
   }
 
+  // Reset scanner
+  document.getElementById('scannerContainer').style.display = 'none';
+  document.getElementById('scannerResult').style.display = 'none';
+
   modal.classList.add('show');
-  // Auto focus name
   setTimeout(() => document.getElementById('productName').focus(), 300);
 }
 
@@ -1287,7 +1642,6 @@ function renderRecipes() {
   const available = getAvailableIngredients();
   const appliances = DB.appliances;
 
-  // Match recipes
   const matched = RECIPES.map(recipe => {
     const has = recipe.ingredients.filter(i => {
       const lower = i.toLowerCase();
@@ -1296,10 +1650,7 @@ function renderRecipes() {
     const total = recipe.ingredients.length;
     const ratio = has.length / total;
     const missing = recipe.ingredients.filter(i => !has.includes(i));
-
-    // Appliance check
     const hasAppliance = recipe.appliance.length === 0 || recipe.appliance.some(a => appliances.includes(a));
-
     return { ...recipe, has: has.length, total, ratio, missing, hasAppliance };
   })
   .filter(r => {
@@ -1337,7 +1688,6 @@ function renderRecipes() {
 //  WEEK PLAN
 // ═══════════════════════════════════════════
 function renderWeekPlan() {
-  // Appliance tags
   const container = document.getElementById('weekApplianceTags');
   container.innerHTML = Object.entries(APPLIANCE_LABELS).map(([key, label]) => {
     const active = DB.appliances.includes(key);
@@ -1382,10 +1732,8 @@ function generateWeekPlan() {
   const appliances = DB.appliances;
   const available = getAvailableIngredients();
 
-  // Filter recipes by appliance availability
   const availableRecipes = RECIPES.filter(r => r.appliance.length === 0 || r.appliance.some(a => appliances.includes(a)));
 
-  // Score recipes by ingredient match
   const scored = availableRecipes.map(r => {
     let score = 0;
     r.ingredients.forEach(i => {
@@ -1399,7 +1747,6 @@ function generateWeekPlan() {
   const types = ['Frühstück','Mittagessen','Abendessen'];
   const weekPlan = [];
 
-  // Use seeded shuffle
   let seed = 42;
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -1414,16 +1761,12 @@ function generateWeekPlan() {
 
   days.forEach((day, dayIdx) => {
     const recipes = [];
-    const typeIdx = dayIdx % 3;
-
-    // Try to pick a breakfast, lunch, dinner
     types.forEach(type => {
       const typeRecipes = shuffled.filter(r => r.type === type);
       if (typeRecipes.length > 0) {
         recipes.push(typeRecipes[dayIdx % typeRecipes.length]);
       }
     });
-
     weekPlan.push({ day, recipes });
   });
 
@@ -1437,22 +1780,10 @@ function generateWeekPlan() {
 //  SETTINGS
 // ═══════════════════════════════════════════
 function renderSettings() {
-  // Appliance grid
   document.getElementById('applianceGrid').innerHTML = Object.entries(APPLIANCE_LABELS).map(([key, label]) => {
     const active = DB.appliances.includes(key);
     return `<div class="appliance-chip ${active?'active':''}" onclick="toggleAppliance('${key}')">${label}</div>`;
   }).join('');
-
-  // Location list
-  document.getElementById('locationList').innerHTML = DB.locations.map(loc => `
-    <div class="category-item" style="margin-bottom:6px">
-      <div class="category-item-left">
-        <span class="cat-emoji">📍</span>
-        <span class="cat-name">${escHtml(loc)}</span>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="removeLocation('${escHtml(loc)}')">✕</button>
-    </div>
-  `).join('');
 }
 
 function toggleAppliance(key) {
@@ -1461,22 +1792,6 @@ function toggleAppliance(key) {
   else DB.appliances.push(key);
   DB.saveAppliances();
   renderSettings();
-}
-
-function showAddLocation() {
-  const loc = prompt('Neuen Aufbewahrungsort eingeben:');
-  if (loc && loc.trim()) {
-    DB.addLocation(loc.trim());
-    renderSettings();
-    showToast('📍 Hinzugefügt');
-  }
-}
-
-function removeLocation(loc) {
-  if (confirm(`„${loc}" wirklich entfernen?`)) {
-    DB.removeLocation(loc);
-    renderSettings();
-  }
 }
 
 // ═══════════════════════════════════════════
@@ -1516,6 +1831,7 @@ function exportData() {
   const data = {
     products: DB.products,
     locations: DB.locations,
+    cabinets: DB.cabinets,
     appliances: DB.appliances,
     weekPlan: DB.weekPlan,
     exportedAt: new Date().toISOString()
@@ -1537,15 +1853,13 @@ function importData(event) {
   reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (data.products) {
-        DB.products = data.products;
-        DB.saveProducts();
-      }
+      if (data.products) { DB.products = data.products; DB.saveProducts(); }
       if (data.locations) { DB.locations = data.locations; DB.saveLocations(); }
+      if (data.cabinets) { DB.cabinets = data.cabinets; DB.saveCabinets(); }
       if (data.appliances) { DB.appliances = data.appliances; DB.saveAppliances(); }
       if (data.weekPlan) { DB.weekPlan = data.weekPlan; DB.saveWeekPlan(); }
       renderPantry();
-      showToast('📥 Importiert! ' + data.products?.length + ' Produkte');
+      showToast('📥 Importiert! ' + (data.products?.length || 0) + ' Produkte, ' + (data.cabinets?.length || 0) + ' Schränke');
     } catch(err) {
       showToast('❌ Fehler: ' + err.message);
     }
@@ -1557,8 +1871,10 @@ function importData(event) {
 function clearAllData() {
   showConfirm('Alle Daten unwiderruflich löschen?', () => {
     DB.products = [];
+    DB.cabinets = [];
     DB.weekPlan = null;
     DB.saveProducts();
+    DB.saveCabinets();
     DB.saveWeekPlan();
     renderPantry();
     showToast('🗑️ Alles gelöscht');
@@ -1568,7 +1884,6 @@ function clearAllData() {
 // ═══════════════════════════════════════════
 //  PASSWORD PROTECT
 // ═══════════════════════════════════════════
-// ⚠️ ÄNDERE DAS PASSWORT HIER – nur client-seitig, keine echte Verschlüsselung
 const APP_PASSWORD = 'kueche2024';
 
 function attemptLogin() {
@@ -1595,7 +1910,6 @@ function checkAuth() {
     initApp();
     return true;
   }
-  // Focus password field
   setTimeout(() => document.getElementById('loginPassword').focus(), 200);
   return false;
 }
@@ -1615,19 +1929,12 @@ function escHtml(str) {
 // ═══════════════════════════════════════════
 function initApp() {
   renderPantry();
+  renderCabinets();
   renderCategories();
   renderRecipes();
   renderWeekPlan();
   renderSettings();
 }
-
-// Auto-detect browser language for category suggestions
-if (navigator.language && navigator.language.startsWith('de')) {
-  // German user – good!
-}
-
-// Service Worker for offline (if we had a separate file)
-// For now, localStorage handles everything
 
 // ── START ──
 checkAuth();

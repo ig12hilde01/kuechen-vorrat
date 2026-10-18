@@ -724,6 +724,54 @@ body {
   <div id="weekPlan"></div>
 </div>
 
+<!-- ═══ SHOPPING LIST TAB ═══ -->
+<div class="tab-content" id="tab-shopping">
+  <div class="section-header">
+    <h2>🛒 Einkaufsliste</h2>
+  </div>
+
+  <!-- Auto-Vorschläge -->
+  <div id="shoppingSuggestions" style="margin-bottom:16px;display:none">
+    <div class="section-header" style="margin-bottom:8px">
+      <h3 style="font-size:.9rem">💡 Auto-Vorschläge</h3>
+      <small style="color:var(--text3)">Produkte mit wenig Bestand</small>
+    </div>
+    <div id="suggestionsList"></div>
+  </div>
+
+  <!-- Manuell hinzufügen -->
+  <div style="margin-bottom:16px">
+    <div class="section-header" style="margin-bottom:8px">
+      <h3 style="font-size:.9rem">➕ Manuell hinzufügen</h3>
+    </div>
+    <div style="display:flex;gap:6px">
+      <input type="text" class="form-input" id="shoppingNewItem" placeholder="Produktname" style="flex:2"
+             onkeydown="if(event.key==='Enter')addShoppingItem()">
+      <input type="number" class="form-input" id="shoppingNewQty" placeholder="Menge" style="flex:1;min-width:60px"
+             value="1" min="1">
+      <select class="form-select" id="shoppingNewUnit" style="flex:1;min-width:50px">
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="ml">ml</option>
+        <option value="l">l</option>
+        <option value="Stück">Stk</option>
+      </select>
+      <button class="btn btn-primary" onclick="addShoppingItem()">+</button>
+    </div>
+    <small style="color:var(--text3);font-size:.7rem;margin-top:4px;display:block">
+      Oder: Gescannten Barcode in Vorrat suchen und hier eintragen
+    </small>
+  </div>
+
+  <!-- Scan-Button -->
+  <div style="margin-bottom:16px">
+    <button class="btn btn-secondary btn-block" onclick="openScannerForShopping()">📱 Barcode scannen</button>
+  </div>
+
+  <!-- Einkaufsliste -->
+  <div id="shoppingList"></div>
+</div>
+
 <!-- ═══ SETTINGS TAB ═══ -->
 <div class="tab-content" id="tab-settings">
   <div class="section-header">
@@ -936,6 +984,9 @@ body {
   <button class="nav-item" data-tab="weekplan" onclick="switchTab('weekplan')">
     <span class="nav-icon">📅</span>Plan
   </button>
+  <button class="nav-item" data-tab="shopping" onclick="switchTab('shopping')">
+    <span class="nav-icon">🛒</span>Einkauf
+  </button>
   <button class="nav-item" data-tab="settings" onclick="switchTab('settings')">
     <span class="nav-icon">⚙️</span>Geräte
   </button>
@@ -1019,10 +1070,77 @@ const DB = {
   saveAppliances() { localStorage.setItem('kv_appliances', JSON.stringify(this.appliances)); },
   saveWeekPlan() { localStorage.setItem('kv_weekplan', JSON.stringify(this.weekPlan)); },
 
+  // ── SHOPPING LIST ──
+  getShoppingList() {
+    return JSON.parse(localStorage.getItem('kv_shopping') || '[]');
+  },
+  saveShoppingList(list) {
+    localStorage.setItem('kv_shopping', JSON.stringify(list));
+  },
+  addShoppingItem(item) {
+    const list = this.getShoppingList();
+    list.push({ id: Date.now() + Math.random(), ...item });
+    this.saveShoppingList(list);
+    return list;
+  },
+  removeShoppingItem(id) {
+    const list = this.getShoppingList().filter(i => i.id !== id);
+    this.saveShoppingList(list);
+    return list;
+  },
+  clearShoppingList() {
+    this.saveShoppingList([]);
+  },
+
+  // ── MOVE TO INVENTORY ──
+  moveToInventory(item) {
+    // Check if product already exists in inventory
+    let product = this.products.find(p =>
+      p.name.toLowerCase() === item.name.toLowerCase() &&
+      p.packageSize === item.packageSize &&
+      p.unit === item.unit
+    );
+    if (product) {
+      // Update existing: add quantity
+      product.quantity = (product.quantity || 0) + (item.quantity || 1);
+      this.saveProducts();
+    } else {
+      // Create new product
+      const newProduct = {
+        id: Date.now() + Math.random(),
+        name: item.name,
+        barcode: item.barcode || '',
+        category: item.category || 'Sonstiges',
+        quantity: item.quantity || 1,
+        unit: item.unit || 'g',
+        packageSize: item.packageSize || '',
+        expiry: '',
+        location: '',
+        note: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.products.push(newProduct);
+      this.saveProducts();
+    }
+    // Remove from shopping list
+    this.removeShoppingItem(item.id);
+    return product || null;
+  },
+
   addProduct(p) { p.id = Date.now().toString(36) + Math.random().toString(36).slice(2,7); this.products.push(p); this.saveProducts(); return p; },
   updateProduct(id, data) { const idx = this.products.findIndex(p=>p.id===id); if(idx>=0) { Object.assign(this.products[idx], data); this.saveProducts(); } },
   deleteProduct(id) { this.products = this.products.filter(p=>p.id!==id); this.saveProducts(); },
   getProduct(id) { return this.products.find(p=>p.id===id); },
+
+  // Find product by name + packageSize + unit (for shopping list)
+  getProductByName(name, packageSize, unit) {
+    return this.products.find(p =>
+      (p.name||'').toLowerCase() === (name||'').toLowerCase() &&
+      p.packageSize === packageSize &&
+      p.unit === unit
+    );
+  },
 
   getExpiringProducts() {
     const now = new Date(); now.setHours(0,0,0,0);
@@ -2068,41 +2186,7 @@ async function scanCabinet() {
         container.classList.remove('scanning');
         container.style.display = 'none';
         if (btn) btn.textContent = '📷 Barcode scannen';
-
-        // Try as cabinet code
-        const cabinet = DB.getCabinetByCode(decodedText);
-        if (cabinet) {
-          document.getElementById('productLocation').value = cabinet.name;
-          showResult('success', '🗄️ Schrank: ' + cabinet.name);
-          showToast('🗄️ ' + cabinet.name);
-        } else {
-          // Try as product barcode lookup
-          document.getElementById('productBarcode').value = decodedText;
-          showResult('loading', '🔍 ' + decodedText + ' – Suche...');
-          lookupBarcode(decodedText).then(found => {
-            if (found) {
-              document.getElementById('productName').value = found.name;
-              document.getElementById('productCategory').value = found.category;
-              if (found.packageSize) {
-                const pkgMatch = found.packageSize.match(/^(\d+)([gkml])$/);
-                if (pkgMatch) {
-                  document.getElementById('productPackageSizeValue').value = pkgMatch[1];
-                  if (pkgMatch[2] === 'ml') document.getElementById('productUnit').value = 'ml';
-                  else if (pkgMatch[2] === 'l') document.getElementById('productUnit').value = 'l';
-                  else if (pkgMatch[2] === 'kg') document.getElementById('productUnit').value = 'kg';
-                  else document.getElementById('productUnit').value = 'g';
-                } else {
-                  document.getElementById('productPackageSizeValue').value = found.packageSize.replace(/[^0-9]/g, '');
-                }
-                initPackageDisplay();
-              }
-              showResult('success', '✅ ' + found.name);
-              showToast('✅ ' + found.name);
-            } else {
-              showResult('not-found', '⚠️ Nicht gefunden – Name manuell eingeben');
-            }
-          });
-        }
+        handleScanResult(decodedText, false);
       },
       () => {}
     );
@@ -2186,6 +2270,7 @@ function switchTab(tab) {
   if (tab === 'categories') renderCategories();
   if (tab === 'recipes') renderRecipes();
   if (tab === 'weekplan') renderWeekPlan();
+  if (tab === 'shopping') renderShoppingList();
   if (tab === 'settings') renderSettings();
 }
 
@@ -2307,6 +2392,238 @@ function renderPantry() {
       </div>
     `;
   }).join('');
+}
+
+// ═══════════════════════════════════════════
+//  SHOPPING LIST
+// ═══════════════════════════════════════════
+let scanTargetForShopping = null;
+
+function renderShoppingList() {
+  const list = DB.getShoppingList();
+  const container = document.getElementById('shoppingList');
+
+  // Auto-suggestions (low stock)
+  const suggestions = getLowStockSuggestions();
+  const suggestionsEl = document.getElementById('shoppingSuggestions');
+  const suggestionsListEl = document.getElementById('suggestionsList');
+  if (suggestions.length > 0 && list.length === 0) {
+    suggestionsEl.style.display = 'block';
+    suggestionsListEl.innerHTML = suggestions.map(s => `
+      <div class="card shopping-suggestion" style="display:flex;align-items:center;gap:10px;padding:10px 14px">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.9rem">${escHtml(s.name)}</div>
+          <div style="font-size:.75rem;color:var(--text2)">${s.quantity} ${s.unit} · ${s.packageSize || ''}</div>
+        </div>
+        <div style="text-align:right;font-size:.75rem;color:var(--text3)">${s.reason}</div>
+        <button class="btn btn-primary btn-sm" onclick="addSuggestionToShopping(${JSON.stringify(s).replace(/"/g, '&quot;')})">+</button>
+      </div>
+    `).join('');
+  } else {
+    suggestionsEl.style.display = 'none';
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><p>Einkaufsliste ist leer.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:.85rem;color:var(--text2)">${list.length} Artikel</span>
+      <button class="btn btn-danger btn-sm" onclick="clearShoppingListConfirm()">🗑️ Leeren</button>
+    </div>
+    ${list.map(item => {
+      const inInv = DB.getProductByName(item.name, item.packageSize, item.unit);
+      return `
+        <div class="card" style="padding:12px 14px;${inInv ? 'opacity:.6;' : ''}">
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" ${inInv ? 'disabled checked' : ''} style="width:20px;height:20px;accent-color:var(--primary)">
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:.9rem">${escHtml(item.name)}</div>
+              <div style="font-size:.75rem;color:var(--text2)">
+                ${item.quantity || 1} ${escHtml(item.unit || '')} ${item.packageSize ? '· ' + escHtml(item.packageSize) : ''}
+                ${item.barcode ? ' · 📱' + escHtml(item.barcode) : ''}
+                ${item.category ? ' · ' + CAT_EMOJI[item.category] + ' ' + escHtml(item.category) : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:4px">
+              ${!inInv ? `<button class="btn btn-primary btn-sm" onclick="moveToInventory(${item.id})" title="In Vorrat übernehmen" style="padding:6px 10px;font-size:.75rem">✓</button>` : '<span style="color:var(--green);font-size:.7rem">✓ im Vorrat</span>'}
+              <button class="btn btn-danger btn-sm" onclick="removeShoppingItem(${item.id})" title="Entfernen" style="padding:6px 10px;font-size:.75rem">✕</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function addShoppingItem() {
+  const name = document.getElementById('shoppingNewItem').value.trim();
+  const qty = parseInt(document.getElementById('shoppingNewQty').value) || 1;
+  const unit = document.getElementById('shoppingNewUnit').value;
+  if (!name) { showToast('Bitte Produktname eingeben'); return; }
+  DB.addShoppingItem({ name, quantity: qty, unit, barcode: '', category: '', packageSize: '' });
+  document.getElementById('shoppingNewItem').value = '';
+  renderShoppingList();
+  showToast('✅ ' + name + ' hinzugefügt');
+}
+
+function getLowStockSuggestions() {
+  return DB.products.filter(p => (p.quantity || 0) <= 2).map(p => ({
+    name: p.name,
+    quantity: 1,
+    unit: p.unit || 'g',
+    packageSize: p.packageSize || '',
+    barcode: p.barcode || '',
+    category: p.category || '',
+    reason: (p.quantity || 0) <= 1 ? '🔴 Fast leer' : '🟡 Nachfüllen'
+  }));
+}
+
+function addSuggestionToShopping(s) {
+  DB.addShoppingItem({ name: s.name, quantity: 1, unit: s.unit, packageSize: s.packageSize, barcode: s.barcode, category: s.category });
+  renderShoppingList();
+  showToast('✅ ' + s.name + ' auf Einkaufsliste');
+}
+
+function moveToInventory(id) {
+  const list = DB.getShoppingList();
+  const item = list.find(i => i.id === id);
+  if (!item) return;
+  const product = DB.moveToInventory(item);
+  renderShoppingList();
+  renderPantry();
+  if (product) {
+    showToast('✅ Bestand aktualisiert: ' + product.name);
+  } else {
+    showToast('✅ Produkt angelegt');
+  }
+}
+
+function removeShoppingItem(id) {
+  DB.removeShoppingItem(id);
+  renderShoppingList();
+}
+
+function clearShoppingListConfirm() {
+  if (confirm('Einkaufsliste wirklich leeren?')) {
+    DB.clearShoppingList();
+    renderShoppingList();
+    showToast('🗑️ Einkaufsliste geleert');
+  }
+}
+
+// ── SCAN FOR SHOPPING ──
+function openScannerForShopping() {
+  const scanner = document.getElementById('scannerContainer');
+  const btn = document.getElementById('scannerToggle');
+  scanner.style.display = 'block';
+  btn.textContent = '⏹ Scanner stoppen';
+  scanForShopping();
+}
+
+function scanForShopping() {
+  const container = document.getElementById('scannerContainer');
+  const btn = document.getElementById('scannerToggle');
+
+  if (scannerRunning) return;
+
+  try {
+    document.getElementById('scannerReader').innerHTML = '';
+    clearResult();
+    container.classList.add('scanning');
+    if (btn) btn.textContent = '⏹ Scanner stoppen';
+
+    await enumerateCameras();
+
+    currentScanner = new Html5Qrcode('scannerReader', false);
+    await currentScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        scannerRunning = false;
+        currentScanner.stop().catch(() => {});
+        currentScanner = null;
+        container.classList.remove('scanning');
+        container.style.display = 'none';
+        if (btn) btn.textContent = '📷 Barcode scannen';
+        handleScanResult(decodedText, true);
+      },
+      () => {}
+    );
+
+    scannerRunning = true;
+    container.style.display = 'block';
+
+  } catch(err) {
+    showToast('❌ Kamera-Fehler: ' + err.message);
+  }
+}
+
+function handleScanResult(decodedText, forShopping) {
+  if (forShopping) {
+    // Shopping list mode: add product to shopping list
+    lookupBarcode(decodedText).then(found => {
+      if (found) {
+        const alreadyInList = DB.getShoppingList().some(i => i.name.toLowerCase() === found.name.toLowerCase());
+        if (alreadyInList) {
+          showToast('⚠️ "' + found.name + '" ist schon auf der Liste');
+        } else {
+          DB.addShoppingItem({
+            name: found.name,
+            quantity: 1,
+            unit: 'g',
+            packageSize: found.packageSize || '',
+            barcode: decodedText,
+            category: found.category || '',
+          });
+          renderShoppingList();
+          showToast('✅ ' + found.name + ' auf Einkaufsliste');
+        }
+      } else {
+        // No barcode found: ask user to name it
+        document.getElementById('shoppingNewItem').value = decodedText;
+        showToast('📝 Bitte Namen anpassen');
+      }
+    });
+  } else {
+    // Normal product scan mode
+    document.getElementById('productBarcode').value = decodedText;
+    // Try as cabinet code
+    const cabinet = DB.getCabinetByCode(decodedText);
+    if (cabinet) {
+      document.getElementById('productLocation').value = cabinet.name;
+      showResult('success', '🗄️ Schrank: ' + cabinet.name);
+      showToast('🗄️ ' + cabinet.name);
+    } else {
+      // Try as product barcode lookup
+      showResult('loading', '🔍 ' + decodedText + ' – Suche...');
+      lookupBarcode(decodedText).then(found => {
+        if (found) {
+          document.getElementById('productName').value = found.name;
+          document.getElementById('productCategory').value = found.category;
+          if (found.packageSize) {
+            const pkgMatch = found.packageSize.match(/^(\d+)([gkml])$/);
+            if (pkgMatch) {
+              document.getElementById('productPackageSizeValue').value = pkgMatch[1];
+              if (pkgMatch[2] === 'ml') document.getElementById('productUnit').value = 'ml';
+              else if (pkgMatch[2] === 'l') document.getElementById('productUnit').value = 'l';
+              else if (pkgMatch[2] === 'kg') document.getElementById('productUnit').value = 'kg';
+              else document.getElementById('productUnit').value = 'g';
+            } else {
+              document.getElementById('productPackageSizeValue').value = found.packageSize.replace(/[^0-9]/g, '');
+            }
+            initPackageDisplay();
+          }
+          showResult('success', '✅ ' + found.name);
+          showToast('✅ ' + found.name);
+        } else {
+          showResult('not-found', '⚠️ Nicht gefunden – Name manuell eingeben');
+        }
+      });
+    }
+  }
 }
 
 function changeQty(id, delta) {
@@ -2842,6 +3159,7 @@ function initApp() {
   renderRecipes();
   renderWeekPlan();
   renderSettings();
+  renderShoppingList();
   // Init package display (for modal)
   initPackageDisplay();
 }

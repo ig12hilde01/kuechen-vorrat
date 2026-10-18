@@ -6,7 +6,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>KüchenVorrat v11.7 – Vorratsverwaltung</title>
+<!-- Force reload: version stamp -->
+<meta name="version" content="11.9b">
+<title>KüchenVorrat</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -574,6 +576,7 @@ body {
 .meal-dinner { color: var(--primary); }
 
 /* ═══ LOGIN OVERLAY ═══ */
+
 #loginOverlay {
   position: fixed !important;
   top: 0 !important;
@@ -642,13 +645,13 @@ body {
 
 <!-- ═══ LOGIN OVERLAY ═══ -->
 <div id="loginOverlay">
-  <div class="login-box">
+  <div class="login-box" onclick="event.stopPropagation()">
     <div class="lock-icon">🔒</div>
     <h2>KüchenVorrat</h2>
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" class="pw-input" placeholder="Passwort"
            onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}">
-    <button class="login-btn" onclick="attemptLogin()" type="button">Einloggen</button>
+    <button class="login-btn" id="loginBtn" type="button" onclick="event.preventDefault();attemptLogin();">Einloggen</button>
     <div id="loginError"></div>
   </div>
 </div>

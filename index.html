@@ -616,8 +616,14 @@ body {
     <div class="lock-icon">🔒</div>
     <h2>KüchenVorrat v11.7</h2>
     <p>Passwort eingeben zum Fortfahren</p>
-    <input type="password" id="loginPassword" placeholder="Passwort" onkeydown="if(event.key==='Enter')attemptLogin()">
-    <button class="btn btn-primary" onclick="attemptLogin()">Einloggen</button>
+    <input type="password" id="loginPassword" placeholder="Passwort"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}"
+           style="cursor:text">
+    <button type="button" class="btn btn-primary"
+            onclick="event.preventDefault();event.stopPropagation();attemptLogin();"
+            style="cursor:pointer;width:100%;margin-top:8px">
+      Einloggen
+    </button>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
@@ -3117,15 +3123,22 @@ function clearAllData() {
 const APP_PASSWORD = 'kueche2024';
 
 function attemptLogin() {
-  const pw = document.getElementById('loginPassword').value;
-  if (pw === APP_PASSWORD) {
-    sessionStorage.setItem('kv_authenticated', '1');
-    document.getElementById('loginOverlay').classList.add('hidden');
-    initApp();
-  } else {
-    document.getElementById('loginError').textContent = '❌ Falsches Passwort';
-    document.getElementById('loginPassword').value = '';
-    document.getElementById('loginPassword').focus();
+  try {
+    const pw = document.getElementById('loginPassword');
+    if (!pw) { showToast('❌ Login-Fehler: Element nicht gefunden'); return; }
+    const val = pw.value;
+    if (val === APP_PASSWORD) {
+      sessionStorage.setItem('kv_authenticated', '1');
+      document.getElementById('loginOverlay').classList.add('hidden');
+      initApp();
+    } else {
+      document.getElementById('loginError').textContent = '❌ Falsches Passwort';
+      pw.value = '';
+      pw.focus();
+    }
+  } catch(e) {
+    console.error('Login error:', e);
+    showToast('❌ Login-Fehler: ' + e.message);
   }
 }
 

@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>KüchenVorrat v11.1 – Vorratsverwaltung</title>
+<title>KüchenVorrat v11.3 – Vorratsverwaltung</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -609,7 +609,7 @@ body {
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="lock-icon">🔒</div>
-    <h2>KüchenVorrat v11.1</h2>
+    <h2>KüchenVorrat v11.3</h2>
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" placeholder="Passwort" onkeydown="if(event.key==='Enter')attemptLogin()">
     <button class="btn btn-primary" onclick="attemptLogin()">Einloggen</button>
@@ -838,9 +838,9 @@ body {
       </div>
     </div>
     <div class="form-group">
-      <label>Verpackungsgröße (optional)</label>
+      <label>Gebindegröße (optional)</label>
       <input type="text" class="form-input" id="productPackageSize" placeholder="z.B. 500g, 750ml, 200g">
-      <small style="color:var(--text3);font-size:.7rem">Netzinhalt pro Einheit – wird nur angezeigt, nicht berechnet</small>
+      <small style="color:var(--text3);font-size:.7rem">Wird automatisch vom Barcode vorbelegt</small>
     </div>
     <div class="form-group">
       <label>Verfallsdatum</label>
@@ -1548,12 +1548,19 @@ const LOCAL_BARCODE_DB = {
 
 async function lookupBarcode(barcode) {
   // 1. Check local DB first (instant!)
-  const local = LOCAL_BARCODE_DB[barcode];
-  if (local) {
+  const found = LOCAL_BARCODE_DB[barcode];
+  if (found) {
+    // Parse package size from name like "Olivenöl (500ml)"
+    let packageSize = null;
+    const sizeMatch = (found.name || '').match(/\(([^)]+)\)/);
+    if (sizeMatch) {
+      packageSize = sizeMatch[1];
+    }
     return {
-      name: local.name,
-      category: local.category,
+      name: found.name,
+      category: found.category,
       expiry: null,
+      packageSize: packageSize,
     };
   }
 
@@ -1563,10 +1570,19 @@ async function lookupBarcode(barcode) {
     const data = await resp.json();
     if (data.status === 1 && data.product) {
       const p = data.product;
+      // Extract package size from Open Food Facts
+      let packageSize = null;
+      if (p.package_size) {
+        const m = String(p.package_size).match(/\(([^)]+)\)/);
+        packageSize = m ? m[1] : p.package_size;
+        // Normalize: remove spaces after number, capitalize unit
+        packageSize = packageSize.replace(/(\d)\s+([a-zA-Z])/g, '$1$2');
+      }
       return {
         name: p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt',
         category: autoDetectCategory(p.product_name || ''),
         expiry: extractExpiry(p),
+        packageSize: packageSize,
       };
     }
   } catch(e) { /* offline */ }
@@ -1838,14 +1854,17 @@ async function handleBarcodeScanned(text) {
   if (found) {
     document.getElementById('productName').value = found.name;
     document.getElementById('productCategory').value = found.category;
+    if (found.packageSize) {
+      document.getElementById('productPackageSize').value = found.packageSize;
+    }
 
     if (found.expiry) {
       document.getElementById('productExpiry').value = found.expiry;
-      showResult('success', '✅ ' + found.name + ' | Verfall: ' + found.expiry);
+      showResult('success', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : '') + ' | Verfall: ' + found.expiry);
     } else {
-      showResult('info', '✅ ' + found.name + ' | Verfallsdatum manuell eingeben');
+      showResult('info', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : '') + ' | Verfallsdatum manuell eingeben');
     }
-    showToast('✅ ' + found.name);
+    showToast('✅ ' + found.name + (found.packageSize ? ' ' + found.packageSize : ''));
   } else {
     showResult('not-found', '⚠️ Produkt nicht in Datenbank – Name manuell eingeben');
     document.getElementById('productName').focus();
@@ -1957,8 +1976,11 @@ async function scanCabinet() {
             if (found) {
               document.getElementById('productName').value = found.name;
               document.getElementById('productCategory').value = found.category;
-              showResult('success', '✅ ' + found.name);
-              showToast('✅ ' + found.name);
+              if (found.packageSize) {
+                document.getElementById('productPackageSize').value = found.packageSize;
+              }
+              showResult('success', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : ''));
+              showToast('✅ ' + found.name + (found.packageSize ? ' ' + found.packageSize : ''));
             } else {
               showResult('not-found', '⚠️ Nicht gefunden – Name manuell eingeben');
             }

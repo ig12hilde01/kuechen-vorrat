@@ -653,7 +653,7 @@ body {
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" class="pw-input" placeholder="Passwort"
            onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}">
-    <button class="login-btn" id="loginBtn" type="button" onclick="alert('Klick funktioniert!');attemptLogin();">Einloggen</button>
+    <button class="login-btn" id="loginBtn" type="button" onclick="document.getElementById('loginError').textContent='⏳ Login wird geprüft…';setTimeout(()=>attemptLogin(),300);">Einloggen</button>
     <div id="loginError"></div>
   </div>
 </div>
@@ -3153,21 +3153,28 @@ function clearAllData() {
 const APP_PASSWORD = 'kueche2024';
 
 function attemptLogin() {
-  try {
-    const pw = document.getElementById('loginPassword');
-    if (!pw) { document.getElementById('loginError').textContent = '❌ Login-Fehler'; return; }
-    const val = pw.value;
-    if (val === APP_PASSWORD) {
+  const pw = document.getElementById('loginPassword');
+  const err = document.getElementById('loginError');
+  if (!pw || !err) return;
+  
+  const val = pw.value;
+  
+  // Check password
+  if (val === APP_PASSWORD) {
+    try {
       sessionStorage.setItem('kv_authenticated', '1');
-      document.getElementById('loginOverlay').classList.add('hidden');
-      initApp();
-    } else {
-      document.getElementById('loginError').textContent = '❌ Falsches Passwort';
-      pw.value = '';
-      pw.focus();
+      err.textContent = '';
+      const overlay = document.getElementById('loginOverlay');
+      if (overlay) overlay.classList.add('hidden');
+      // Call initApp
+      if (typeof initApp === 'function') initApp();
+    } catch(e) {
+      err.textContent = '❌ Session-Fehler: ' + e.message;
     }
-  } catch(e) {
-    document.getElementById('loginError').textContent = '❌ Fehler: ' + e.message;
+  } else {
+    err.textContent = '❌ Falsches Passwort – nochmal versuchen';
+    pw.value = '';
+    pw.focus();
   }
 }
 

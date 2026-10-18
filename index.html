@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <!-- Force reload: version stamp -->
-<meta name="version" content="11.9b">
+<meta name="version" content="11.9d">
 <title>KüchenVorrat</title>
 <style>
 :root {
@@ -584,12 +584,13 @@ body {
   width: 100vw !important;
   height: 100vh !important;
   background: #0f1117 !important;
-  z-index: 99999 !important;
+  z-index: 999999 !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 20px !important;
+  pointer-events: auto !important;
 }
 #loginOverlay.hidden { display: none !important; }
 #loginOverlay .login-box {
@@ -600,6 +601,7 @@ body {
   width: 100% !important;
   max-width: 340px !important;
   text-align: center !important;
+  pointer-events: auto !important;
 }
 #loginOverlay .login-box h2 { font-size: 1.3rem; margin-bottom: 6px; color: #e8e8f0; }
 #loginOverlay .login-box p { font-size: .85rem; color: #9498b0; margin-bottom: 20px; }
@@ -651,7 +653,7 @@ body {
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" class="pw-input" placeholder="Passwort"
            onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}">
-    <button class="login-btn" id="loginBtn" type="button" onclick="event.preventDefault();attemptLogin();">Einloggen</button>
+    <button class="login-btn" id="loginBtn" type="button" onclick="alert('Klick funktioniert!');attemptLogin();">Einloggen</button>
     <div id="loginError"></div>
   </div>
 </div>

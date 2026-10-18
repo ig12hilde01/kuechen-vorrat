@@ -574,57 +574,82 @@ body {
 .meal-dinner { color: var(--primary); }
 
 /* ═══ LOGIN OVERLAY ═══ */
-.login-overlay {
-  position: fixed; inset: 0; background: var(--bg);
-  z-index: 9999; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; padding: 20px;
+#loginOverlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #0f1117 !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
 }
-.login-overlay.hidden { display: none; }
-.login-box {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 32px 24px;
-  width: 100%; max-width: 340px; text-align: center;
-  pointer-events: auto;
+#loginOverlay.hidden { display: none !important; }
+#loginOverlay .login-box {
+  background: #1a1d27 !important;
+  border: 2px solid #2e3348 !important;
+  border-radius: 12px !important;
+  padding: 32px 24px !important;
+  width: 100% !important;
+  max-width: 340px !important;
+  text-align: center !important;
 }
-.login-box h2 { font-size: 1.3rem; margin-bottom: 6px; }
-.login-box p { font-size: .85rem; color: var(--text2); margin-bottom: 20px; }
-.login-box .lock-icon { font-size: 2.5rem; margin-bottom: 16px; }
-.login-box input {
-  width: 100%; padding: 14px 16px; margin-bottom: 12px;
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); color: var(--text);
-  font-size: 1rem; outline: none; text-align: center;
-  letter-spacing: 2px;
-  pointer-events: auto; cursor: text;
+#loginOverlay .login-box h2 { font-size: 1.3rem; margin-bottom: 6px; color: #e8e8f0; }
+#loginOverlay .login-box p { font-size: .85rem; color: #9498b0; margin-bottom: 20px; }
+#loginOverlay .lock-icon { font-size: 2.5rem; margin-bottom: 16px; }
+#loginOverlay .pw-input {
+  width: 100% !important;
+  padding: 14px 16px !important;
+  margin-bottom: 12px !important;
+  background: #242836 !important;
+  border: 2px solid #2e3348 !important;
+  border-radius: 8px !important;
+  color: #e8e8f0 !important;
+  font-size: 1rem !important;
+  text-align: center !important;
+  letter-spacing: 2px !important;
+  outline: none !important;
 }
-.login-box input:focus { border-color: var(--primary); }
-.login-box .btn {
-  width: 100%;
-  pointer-events: auto; cursor: pointer;
+#loginOverlay .pw-input:focus { border-color: #6c63ff !important; }
+#loginOverlay .login-btn {
+  width: 100% !important;
+  padding: 14px 20px !important;
+  margin-top: 8px !important;
+  background: #6c63ff !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: block !important;
 }
-.login-error {
-  color: var(--red); font-size: .8rem; margin-top: 10px;
-  min-height: 20px;
+#loginOverlay .login-btn:hover { background: #5a52e0 !important; }
+#loginOverlay .login-btn:active { transform: scale(0.97) !important; }
+#loginError {
+  color: #e74c3c !important;
+  font-size: .8rem !important;
+  margin-top: 10px !important;
+  min-height: 20px !important;
 }
 </style>
 </head>
 <body>
 
 <!-- ═══ LOGIN OVERLAY ═══ -->
-<div class="login-overlay" id="loginOverlay">
+<div id="loginOverlay">
   <div class="login-box">
     <div class="lock-icon">🔒</div>
-    <h2>KüchenVorrat v11.7</h2>
+    <h2>KüchenVorrat</h2>
     <p>Passwort eingeben zum Fortfahren</p>
-    <input type="password" id="loginPassword" placeholder="Passwort"
-           onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}"
-           style="cursor:text">
-    <button type="button" class="btn btn-primary"
-            onclick="event.preventDefault();event.stopPropagation();attemptLogin();"
-            style="cursor:pointer;width:100%;margin-top:8px">
-      Einloggen
-    </button>
-    <div class="login-error" id="loginError"></div>
+    <input type="password" id="loginPassword" class="pw-input" placeholder="Passwort"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();attemptLogin();}">
+    <button class="login-btn" onclick="attemptLogin()" type="button">Einloggen</button>
+    <div id="loginError"></div>
   </div>
 </div>
 
@@ -3125,7 +3150,7 @@ const APP_PASSWORD = 'kueche2024';
 function attemptLogin() {
   try {
     const pw = document.getElementById('loginPassword');
-    if (!pw) { showToast('❌ Login-Fehler: Element nicht gefunden'); return; }
+    if (!pw) { document.getElementById('loginError').textContent = '❌ Login-Fehler'; return; }
     const val = pw.value;
     if (val === APP_PASSWORD) {
       sessionStorage.setItem('kv_authenticated', '1');
@@ -3137,8 +3162,7 @@ function attemptLogin() {
       pw.focus();
     }
   } catch(e) {
-    console.error('Login error:', e);
-    showToast('❌ Login-Fehler: ' + e.message);
+    document.getElementById('loginError').textContent = '❌ Fehler: ' + e.message;
   }
 }
 
@@ -3153,7 +3177,8 @@ function checkAuth() {
     initApp();
     return true;
   }
-  setTimeout(() => document.getElementById('loginPassword').focus(), 200);
+  const pw = document.getElementById('loginPassword');
+  if (pw) setTimeout(() => pw.focus(), 200);
   return false;
 }
 

@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>KüchenVorrat v11.3 – Vorratsverwaltung</title>
+<title>KüchenVorrat v11.5 – Vorratsverwaltung</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -609,7 +609,7 @@ body {
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="lock-icon">🔒</div>
-    <h2>KüchenVorrat v11.3</h2>
+    <h2>KüchenVorrat v11.5</h2>
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" placeholder="Passwort" onkeydown="if(event.key==='Enter')attemptLogin()">
     <button class="btn btn-primary" onclick="attemptLogin()">Einloggen</button>
@@ -754,6 +754,7 @@ body {
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 id="modalTitle">Produkt hinzufügen</h2>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Menge = Stück-Anzahl (z.B. 3 Gläser). Gebindegröße = Gewicht/Volumen pro Einheit (z.B. 500g).</p>
     <input type="hidden" id="editProductId">
 
     <!-- Scanner Button -->
@@ -820,9 +821,9 @@ body {
         <input type="number" class="form-input" id="productQuantity" placeholder="z.B. 3" min="0" step="1">
       </div>
       <div class="form-group" style="flex:1">
-        <label>Einheit</label>
+        <label>Einheit (Stückart)</label>
         <select class="form-select" id="productUnit">
-          <option value="Stück">Stück</option>
+          <option value="Stück">🔢 Stück</option>
           <option value="Glas">🫙 Glas</option>
           <option value="Dose">🥫 Dose</option>
           <option value="Packung">📦 Packung</option>
@@ -830,17 +831,57 @@ body {
           <option value="Flasche">🍾 Flasche</option>
           <option value="Tüte">🧴 Tüte</option>
           <option value="Pack">📦 Pack</option>
-          <option value="g">g</option>
-          <option value="kg">kg</option>
-          <option value="ml">ml</option>
-          <option value="l">l</option>
+          <option value="Meterware">📏 Meterware</option>
         </select>
       </div>
     </div>
     <div class="form-group">
-      <label>Gebindegröße (optional)</label>
-      <input type="text" class="form-input" id="productPackageSize" placeholder="z.B. 500g, 750ml, 200g">
-      <small style="color:var(--text3);font-size:.7rem">Wird automatisch vom Barcode vorbelegt</small>
+      <label>Gebindegröße (Gewicht/Volumen pro Einheit)</label>
+      <select class="form-select" id="productPackageSize">
+        <option value="">– Bitte wählen –</option>
+        <optgroup label="⚖️ Gewicht">
+          <option value="50g">50 g</option>
+          <option value="75g">75 g</option>
+          <option value="100g">100 g</option>
+          <option value="125g">125 g</option>
+          <option value="200g">200 g</option>
+          <option value="250g">250 g</option>
+          <option value="300g">300 g</option>
+          <option value="400g">400 g</option>
+          <option value="500g">500 g</option>
+          <option value="600g">600 g</option>
+          <option value="750g">750 g</option>
+          <option value="800g">800 g</option>
+          <option value="900g">900 g</option>
+          <option value="1kg">1 kg</option>
+          <option value="1.5kg">1,5 kg</option>
+          <option value="2kg">2 kg</option>
+          <option value="3kg">3 kg</option>
+          <option value="5kg">5 kg</option>
+        </optgroup>
+        <optgroup label="🧪 Volumen">
+          <option value="50ml">50 ml</option>
+          <option value="100ml">100 ml</option>
+          <option value="125ml">125 ml</option>
+          <option value="150ml">150 ml</option>
+          <option value="200ml">200 ml</option>
+          <option value="250ml">250 ml</option>
+          <option value="330ml">330 ml</option>
+          <option value="375ml">375 ml</option>
+          <option value="500ml">500 ml</option>
+          <option value="700ml">700 ml</option>
+          <option value="750ml">750 ml</option>
+          <option value="1l">1 l</option>
+          <option value="1.5l">1,5 l</option>
+          <option value="2l">2 l</option>
+          <option value="5l">5 l</option>
+        </optgroup>
+        <optgroup label="✏️ Eigene Größe">
+          <option value="custom">✏️ Eigene Größe eingeben…</option>
+        </optgroup>
+      </select>
+      <input type="text" class="form-input" id="productPackageSizeCustom" placeholder="z.B. 350g, 600ml" style="display:none;margin-top:6px">
+      <small style="color:var(--text3);font-size:.7rem">Wird automatisch vom Barcode vorbelegt. Z.B. „3 Gläser à 250g“ → Menge=3, Einheit=Glas, Gebindegröße=250g</small>
     </div>
     <div class="form-group">
       <label>Verfallsdatum</label>
@@ -1858,8 +1899,18 @@ async function handleBarcodeScanned(text) {
   if (found) {
     document.getElementById('productName').value = found.name;
     document.getElementById('productCategory').value = found.category;
-    if (found.packageSize) {
-      document.getElementById('productPackageSize').value = found.packageSize;
+    // Set package size dropdown
+    const pkgSelect = document.getElementById('productPackageSize');
+    const pkgCustom = document.getElementById('productPackageSizeCustom');
+    if (found.packageSize && pkgSelect) {
+      pkgSelect.value = found.packageSize;
+      if (!pkgSelect.value) {
+        // Not in dropdown → use custom
+        pkgSelect.value = 'custom';
+        if (pkgCustom) { pkgCustom.value = found.packageSize; pkgCustom.style.display = 'block'; }
+      } else if (pkgCustom) {
+        pkgCustom.style.display = 'none';
+      }
     }
 
     if (found.expiry) {
@@ -1980,8 +2031,16 @@ async function scanCabinet() {
             if (found) {
               document.getElementById('productName').value = found.name;
               document.getElementById('productCategory').value = found.category;
-              if (found.packageSize) {
-                document.getElementById('productPackageSize').value = found.packageSize;
+              const pkgSelect = document.getElementById('productPackageSize');
+              const pkgCustom = document.getElementById('productPackageSizeCustom');
+              if (found.packageSize && pkgSelect) {
+                pkgSelect.value = found.packageSize;
+                if (!pkgSelect.value) {
+                  pkgSelect.value = 'custom';
+                  if (pkgCustom) { pkgCustom.value = found.packageSize; pkgCustom.style.display = 'block'; }
+                } else if (pkgCustom) {
+                  pkgCustom.style.display = 'none';
+                }
               }
               showResult('success', '✅ ' + found.name);
               showToast('✅ ' + found.name);
@@ -2178,7 +2237,7 @@ function renderPantry() {
           <div class="product-name">${escHtml(p.name)}</div>
           <div class="product-meta">
             <span>${escHtml(p.quantity || '0')} ${escHtml(p.unit || '')}</span>
-            ${p.packageSize ? `<span style="color:var(--text3)"> (${escHtml(p.packageSize)} pro ${escHtml(p.unit || '')})</span>` : ''}
+            ${p.packageSize ? `<span style="color:var(--text3)">· ${escHtml(p.packageSize)}</span>` : ''}
             <span>${p.barcode ? '📱 ' + p.barcode : ''}</span>
           </div>
           <div style="margin-top:4px">
@@ -2247,7 +2306,7 @@ function showDetail(id) {
         <div class="detail-field-value">${escHtml(p.quantity||0)} ${escHtml(p.unit||'')}</div>
       </div>
       ${p.packageSize ? `<div class="detail-field">
-        <div class="detail-field-label">Verpackungsgröße</div>
+        <div class="detail-field-label">Gebindegröße</div>
         <div class="detail-field-value">${escHtml(p.packageSize)} pro ${escHtml(p.unit||'')}</div>
       </div>` : ''}
       <div class="detail-field">
@@ -2321,7 +2380,22 @@ function showAddProduct(editId) {
     document.getElementById('productCategory').value = p.category || 'Sonstiges';
     document.getElementById('productQuantity').value = p.quantity || '';
     document.getElementById('productUnit').value = p.unit || 'Stück';
-    document.getElementById('productPackageSize').value = p.packageSize || '';
+    // Set package size dropdown; handle custom values not in dropdown
+    const pkgSelect = document.getElementById('productPackageSize');
+    const pkgCustom = document.getElementById('productPackageSizeCustom');
+    if (pkgSelect) {
+      pkgSelect.value = p.packageSize || '';
+      if (p.packageSize && p.packageSize !== 'custom' && !pkgSelect.value) {
+        // Value not in dropdown → switch to custom mode
+        pkgSelect.value = 'custom';
+        if (pkgCustom) pkgCustom.value = p.packageSize;
+      }
+    }
+    if (pkgCustom && (p.packageSize === 'custom' || (p.packageSize && pkgSelect && pkgSelect.value === 'custom'))) {
+      pkgCustom.style.display = 'block';
+    } else if (pkgCustom) {
+      pkgCustom.style.display = 'none';
+    }
     document.getElementById('productExpiry').value = p.expiry || '';
     document.getElementById('productLocation').value = p.location || '';
     document.getElementById('productNote').value = p.note || '';
@@ -2333,7 +2407,11 @@ function showAddProduct(editId) {
     document.getElementById('productCategory').value = 'Sonstiges';
     document.getElementById('productQuantity').value = '';
     document.getElementById('productUnit').value = 'Stück';
-    document.getElementById('productPackageSize').value = '';
+    // Reset package size dropdown + custom
+    const pkgSel = document.getElementById('productPackageSize');
+    const pkgCust = document.getElementById('productPackageSizeCustom');
+    if (pkgSel) pkgSel.value = '';
+    if (pkgCust) { pkgCust.value = ''; pkgCust.style.display = 'none'; }
     document.getElementById('productExpiry').value = '';
     document.getElementById('productLocation').selectedIndex = 0;
     document.getElementById('productNote').value = '';
@@ -2357,7 +2435,13 @@ function saveProduct() {
   const category = document.getElementById('productCategory').value;
   const quantity = Number(document.getElementById('productQuantity').value) || 0;
   const unit = document.getElementById('productUnit').value;
-  const packageSize = document.getElementById('productPackageSize').value.trim();
+  // Read from dropdown; if custom option selected, use custom input
+  const pkgSelect = document.getElementById('productPackageSize');
+  const pkgCustom = document.getElementById('productPackageSizeCustom');
+  let packageSize = pkgSelect ? pkgSelect.value : '';
+  if (packageSize === 'custom' && pkgCustom) {
+    packageSize = pkgCustom.value.trim();
+  }
   const expiry = document.getElementById('productExpiry').value;
   const location = document.getElementById('productLocation').value;
   const note = document.getElementById('productNote').value.trim();
@@ -2711,6 +2795,15 @@ function escHtml(str) {
 //  INIT
 // ═══════════════════════════════════════════
 function initApp() {
+  // Toggle custom package size input
+  const pkgSelect = document.getElementById('productPackageSize');
+  const pkgCustom = document.getElementById('productPackageSizeCustom');
+  if (pkgSelect && pkgCustom) {
+    pkgSelect.addEventListener('change', function() {
+      pkgCustom.style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+  }
+
   renderPantry();
   renderCabinets();
   renderCategories();

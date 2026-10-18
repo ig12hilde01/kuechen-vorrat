@@ -1550,14 +1550,16 @@ async function lookupBarcode(barcode) {
   // 1. Check local DB first (instant!)
   const found = LOCAL_BARCODE_DB[barcode];
   if (found) {
-    // Parse package size from name like "Olivenöl (500ml)"
+    // Parse package size from name like "Olivenöl (500ml)" → cleanName="Olivenöl", packageSize="500ml"
+    let cleanName = found.name || '';
     let packageSize = null;
-    const sizeMatch = (found.name || '').match(/\(([^)]+)\)/);
+    const sizeMatch = cleanName.match(/\(([^)]+)\)/);
     if (sizeMatch) {
       packageSize = sizeMatch[1];
+      cleanName = cleanName.replace(/\s*\([^)]+\)$/, '').trim();
     }
     return {
-      name: found.name,
+      name: cleanName,
       category: found.category,
       expiry: null,
       packageSize: packageSize,
@@ -1570,16 +1572,18 @@ async function lookupBarcode(barcode) {
     const data = await resp.json();
     if (data.status === 1 && data.product) {
       const p = data.product;
-      // Extract package size from Open Food Facts
+      // Extract name and package size from Open Food Facts
+      let name = p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt';
       let packageSize = null;
       if (p.package_size) {
-        const m = String(p.package_size).match(/\(([^)]+)\)/);
-        packageSize = m ? m[1] : p.package_size;
-        // Normalize: remove spaces after number, capitalize unit
-        packageSize = packageSize.replace(/(\d)\s+([a-zA-Z])/g, '$1$2');
+        packageSize = String(p.package_size).replace(/(\d)\s+([a-zA-Z])/g, '$1$2');
+        // Also strip size from name if present in parentheses
+        const m = name.match(/\(([^)]+)\)/);
+        if (m && !packageSize) packageSize = m[1];
+        name = name.replace(/\s*\([^)]+\)$/, '').trim();
       }
       return {
-        name: p.product_name || p.product_name_de || p.generic_name || 'Unbekanntes Produkt',
+        name: name,
         category: autoDetectCategory(p.product_name || ''),
         expiry: extractExpiry(p),
         packageSize: packageSize,
@@ -1860,11 +1864,11 @@ async function handleBarcodeScanned(text) {
 
     if (found.expiry) {
       document.getElementById('productExpiry').value = found.expiry;
-      showResult('success', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : '') + ' | Verfall: ' + found.expiry);
+      showResult('success', '✅ ' + found.name + ' | Verfall: ' + found.expiry);
     } else {
-      showResult('info', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : '') + ' | Verfallsdatum manuell eingeben');
+      showResult('info', '✅ ' + found.name + ' | Verfallsdatum manuell eingeben');
     }
-    showToast('✅ ' + found.name + (found.packageSize ? ' ' + found.packageSize : ''));
+    showToast('✅ ' + found.name);
   } else {
     showResult('not-found', '⚠️ Produkt nicht in Datenbank – Name manuell eingeben');
     document.getElementById('productName').focus();
@@ -1979,8 +1983,8 @@ async function scanCabinet() {
               if (found.packageSize) {
                 document.getElementById('productPackageSize').value = found.packageSize;
               }
-              showResult('success', '✅ ' + found.name + (found.packageSize ? ' (' + found.packageSize + ')' : ''));
-              showToast('✅ ' + found.name + (found.packageSize ? ' ' + found.packageSize : ''));
+              showResult('success', '✅ ' + found.name);
+              showToast('✅ ' + found.name);
             } else {
               showResult('not-found', '⚠️ Nicht gefunden – Name manuell eingeben');
             }

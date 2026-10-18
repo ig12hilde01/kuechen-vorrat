@@ -584,6 +584,7 @@ body {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 32px 24px;
   width: 100%; max-width: 340px; text-align: center;
+  pointer-events: auto;
 }
 .login-box h2 { font-size: 1.3rem; margin-bottom: 6px; }
 .login-box p { font-size: .85rem; color: var(--text2); margin-bottom: 20px; }
@@ -594,9 +595,13 @@ body {
   border-radius: var(--radius-sm); color: var(--text);
   font-size: 1rem; outline: none; text-align: center;
   letter-spacing: 2px;
+  pointer-events: auto; cursor: text;
 }
 .login-box input:focus { border-color: var(--primary); }
-.login-box .btn { width: 100%; }
+.login-box .btn {
+  width: 100%;
+  pointer-events: auto; cursor: pointer;
+}
 .login-error {
   color: var(--red); font-size: .8rem; margin-top: 10px;
   min-height: 20px;

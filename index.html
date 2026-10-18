@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>KüchenVorrat v11.6 – Vorratsverwaltung</title>
+<title>KüchenVorrat v11.7 – Vorratsverwaltung</title>
 <style>
 :root {
   --bg: #0f1117;
@@ -609,7 +609,7 @@ body {
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="lock-icon">🔒</div>
-    <h2>KüchenVorrat v11.6</h2>
+    <h2>KüchenVorrat v11.7</h2>
     <p>Passwort eingeben zum Fortfahren</p>
     <input type="password" id="loginPassword" placeholder="Passwort" onkeydown="if(event.key==='Enter')attemptLogin()">
     <button class="btn btn-primary" onclick="attemptLogin()">Einloggen</button>
@@ -754,7 +754,7 @@ body {
   <div class="modal">
     <div class="modal-handle"></div>
     <h2 id="modalTitle">Produkt hinzufügen</h2>
-    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Menge = Anzahl (z.B. 3). Einheit = g, kg, ml, l. Gebindegröße = freie Angabe (z.B. "Glas", "Dose", "Packung").</p>
+    <p style="font-size:.75rem;color:var(--text3);margin-bottom:14px">Menge = Anzahl vorhanden (z.B. 3). Einheit = g, kg, ml, l. Gebindegröße = Größe pro Einheit (z.B. 500ml, 1l).</p>
     <input type="hidden" id="editProductId">
 
     <!-- Scanner Button -->
@@ -817,7 +817,7 @@ body {
     </div>
     <div style="display:flex;gap:10px">
       <div class="form-group" style="flex:1">
-        <label>Menge *</label>
+        <label>Anzahl *</label>
         <input type="number" class="form-input" id="productQuantity" placeholder="z.B. 3" min="0" step="1">
       </div>
       <div class="form-group" style="flex:1">
@@ -831,9 +831,29 @@ body {
       </div>
     </div>
     <div class="form-group">
-      <label>Gebindegröße (z.B. Glas, Dose, Packung, Flasche)</label>
-      <input type="text" class="form-input" id="productPackageSize" placeholder="z.B. Glas, Dose, Packung, Flasche">
-      <small style="color:var(--text3);font-size:.7rem">Wird automatisch vom Barcode vorbelegt</small>
+      <label>Gebindegröße (Größe pro Einheit)</label>
+      <div style="display:flex;gap:6px;align-items:center">
+        <select class="form-select" id="productPackageSizeValue" style="flex:2">
+          <option value="">– Wählen –</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="125">125</option>
+          <option value="200">200</option>
+          <option value="250">250</option>
+          <option value="330">330</option>
+          <option value="500">500</option>
+          <option value="750">750</option>
+          <option value="1000">1000</option>
+          <option value="1500">1500</option>
+          <option value="2000">2000</option>
+          <option value="3000">3000</option>
+          <option value="5000">5000</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="adjustPackage(-50)" title="-50" style="min-width:36px;padding:8px 4px">−</button>
+        <button class="btn btn-secondary btn-sm" onclick="adjustPackage(50)" title="+50" style="min-width:36px;padding:8px 4px">+</button>
+        <span class="form-input" style="flex:1;text-align:center;pointer-events:none;display:flex;align-items:center;justify-content:center;font-weight:700" id="productPackageSizeDisplay">—</span>
+      </div>
+      <small style="color:var(--text3);font-size:.7rem">Voreingestellt vom Barcode. +/− in 50er-Schritten (bei kg in 100er).</small>
     </div>
     <div class="form-group">
       <label>Verfallsdatum</label>
@@ -1277,6 +1297,44 @@ const RECIPES = [
   { name:"Hähnchennuggets im Ofen", ingredients:["Hähnchenbrust","Semmelbrösel","Ei","Paprikapulver","Salz","Pfeffer"], time:"30 min", appliance:["backofen"], type:"Mittagessen", difficulty:"Einfach", cal:"380 kcal" },
   { name:"Milchreis mit Zimt", ingredients:["Milchreis","Milch","Zucker","Zimt","Zitronenschale"], time:"30 min", appliance:["herd"], type:"Dessert", difficulty:"Einfach", cal:"280 kcal" },
 ];
+
+// ═══════════════════════════════════════════
+//  UI: PACKAGE SIZE DISPLAY (Einheit + Wert)
+// ═══════════════════════════════════════════
+function updatePackageDisplay() {
+  const valueEl = document.getElementById('productPackageSizeValue');
+  const displayEl = document.getElementById('productPackageSizeDisplay');
+  const unit = document.getElementById('productUnit').value;
+  const value = valueEl ? valueEl.value : '';
+  if (value && unit) {
+    displayEl.textContent = value + unit;
+  } else {
+    displayEl.textContent = '—';
+  }
+}
+
+function adjustPackage(delta) {
+  const valueEl = document.getElementById('productPackageSizeValue');
+  const unit = document.getElementById('productUnit').value;
+  if (!valueEl) return;
+  let current = parseInt(valueEl.value) || 0;
+  // Bei kg in 100er-Schritten, sonst in 50er
+  const step = unit === 'kg' ? 100 : 50;
+  let newVal = current + delta * step;
+  if (newVal < 50) newVal = 50;
+  valueEl.value = String(newVal);
+  updatePackageDisplay();
+}
+
+// Listen on unit change and package value change
+function initPackageDisplay() {
+  const unitEl = document.getElementById('productUnit');
+  const valueEl = document.getElementById('productPackageSizeValue');
+  if (unitEl) unitEl.addEventListener('change', updatePackageDisplay);
+  if (valueEl) valueEl.addEventListener('change', updatePackageDisplay);
+  if (valueEl) valueEl.addEventListener('input', updatePackageDisplay);
+  updatePackageDisplay();
+}
 
 // ═══════════════════════════════════════════
 //  BARCODE LOOKUP (Open Food Facts + Local DB)
@@ -1890,9 +1948,21 @@ async function handleBarcodeScanned(text) {
   if (found) {
     document.getElementById('productName').value = found.name;
     document.getElementById('productCategory').value = found.category;
-    // Set package size text field
+    // Set package size from barcode
     if (found.packageSize) {
-      document.getElementById('productPackageSize').value = found.packageSize;
+      // Parse "500ml" → value=500, unit=ml
+      const pkgMatch = found.packageSize.match(/^(\d+)([gkml])$/);
+      if (pkgMatch) {
+        document.getElementById('productPackageSizeValue').value = pkgMatch[1];
+        if (pkgMatch[2] === 'ml') document.getElementById('productUnit').value = 'ml';
+        else if (pkgMatch[2] === 'l') document.getElementById('productUnit').value = 'l';
+        else if (pkgMatch[2] === 'kg') document.getElementById('productUnit').value = 'kg';
+        else document.getElementById('productUnit').value = 'g';
+      } else {
+        // Fallback: try to guess unit from value
+        document.getElementById('productPackageSizeValue').value = found.packageSize.replace(/[^0-9]/g, '');
+      }
+      initPackageDisplay();
     }
 
     if (found.expiry) {
@@ -2013,9 +2083,18 @@ async function scanCabinet() {
             if (found) {
               document.getElementById('productName').value = found.name;
               document.getElementById('productCategory').value = found.category;
-              // Set package size text field
               if (found.packageSize) {
-                document.getElementById('productPackageSize').value = found.packageSize;
+                const pkgMatch = found.packageSize.match(/^(\d+)([gkml])$/);
+                if (pkgMatch) {
+                  document.getElementById('productPackageSizeValue').value = pkgMatch[1];
+                  if (pkgMatch[2] === 'ml') document.getElementById('productUnit').value = 'ml';
+                  else if (pkgMatch[2] === 'l') document.getElementById('productUnit').value = 'l';
+                  else if (pkgMatch[2] === 'kg') document.getElementById('productUnit').value = 'kg';
+                  else document.getElementById('productUnit').value = 'g';
+                } else {
+                  document.getElementById('productPackageSizeValue').value = found.packageSize.replace(/[^0-9]/g, '');
+                }
+                initPackageDisplay();
               }
               showResult('success', '✅ ' + found.name);
               showToast('✅ ' + found.name);
@@ -2213,7 +2292,7 @@ function renderPantry() {
           <div class="product-meta">
             <span>${escHtml(p.quantity || '0')} ${escHtml(p.unit || '')}</span>
             ${p.packageSize ? `<span style="color:var(--text3)">· ${escHtml(p.packageSize)}</span>` : ''}
-            <span>${p.barcode ? '📱 ' + p.barcode : ''}</span>
+            <span>${p.barcode ? '📱 ' + escHtml(p.barcode) : ''}</span>
           </div>
           <div style="margin-top:4px">
             <span class="expiry-badge ${expiry.class}">${expiry.label}</span>
@@ -2355,8 +2434,17 @@ function showAddProduct(editId) {
     document.getElementById('productCategory').value = p.category || 'Sonstiges';
     document.getElementById('productQuantity').value = p.quantity || '';
     document.getElementById('productUnit').value = p.unit || 'g';
-    document.getElementById('productPackageSize').value = p.packageSize || '';
+    // Parse packageSize value and unit from stored format (e.g. "500ml", "1l", "250g", "1kg")
+    const pkgMatch = (p.packageSize || '').match(/^(\d+)([gkml])$/);
+    if (pkgMatch) {
+      document.getElementById('productPackageSizeValue').value = pkgMatch[1];
+      if (pkgMatch[2] === 'ml') document.getElementById('productUnit').value = 'ml';
+      else if (pkgMatch[2] === 'l') document.getElementById('productUnit').value = 'l';
+      else if (pkgMatch[2] === 'kg') document.getElementById('productUnit').value = 'kg';
+      else document.getElementById('productUnit').value = 'g';
+    }
     document.getElementById('productExpiry').value = p.expiry || '';
+    initPackageDisplay();
     document.getElementById('productLocation').value = p.location || '';
     document.getElementById('productNote').value = p.note || '';
   } else {
@@ -2367,8 +2455,9 @@ function showAddProduct(editId) {
     document.getElementById('productCategory').value = 'Sonstiges';
     document.getElementById('productQuantity').value = '';
     document.getElementById('productUnit').value = 'g';
-    document.getElementById('productPackageSize').value = '';
+    document.getElementById('productPackageSizeValue').value = '';
     document.getElementById('productExpiry').value = '';
+    initPackageDisplay();
     document.getElementById('productLocation').selectedIndex = 0;
     document.getElementById('productNote').value = '';
     document.getElementById('barcodeValue').value = '';
@@ -2391,7 +2480,9 @@ function saveProduct() {
   const category = document.getElementById('productCategory').value;
   const quantity = Number(document.getElementById('productQuantity').value) || 0;
   const unit = document.getElementById('productUnit').value;
-  const packageSize = document.getElementById('productPackageSize').value.trim();
+  const pkgValue = document.getElementById('productPackageSizeValue').value;
+  // Combine: e.g. "500" + "ml" = "500ml"
+  let packageSize = pkgValue && unit ? pkgValue + unit : '';
   const expiry = document.getElementById('productExpiry').value;
   const location = document.getElementById('productLocation').value;
   const note = document.getElementById('productNote').value.trim();
@@ -2751,6 +2842,8 @@ function initApp() {
   renderRecipes();
   renderWeekPlan();
   renderSettings();
+  // Init package display (for modal)
+  initPackageDisplay();
 }
 
 // ── START ──

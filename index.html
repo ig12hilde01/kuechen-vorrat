@@ -3,8 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>KüchenVorrat</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="version" content="v14.1">
+<title>KüchenVorrat v14.1</title>
 <style>
 :root{--bg:#0f0f1a;--card:#1a1a2e;--pri:#6c63ff;--txt:#e0e0e0;--sub:#888;--red:#e74c3c;--green:#27ae60;--amber:#f39c12;--pad:16px}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -112,16 +115,16 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
 </style>
 </head>
 <body>
-<div class="login" id="loginScreen">
+<div class="login" id="loginScreen" style="display:flex">
   <div class="lcard">
     <h1>🍽️ KüchenVorrat</h1>
     <div class="sub">Lagerverwaltung</div>
     <input type="password" id="pw" placeholder="Passwort" inputmode="text" autocomplete="off" autofocus>
-    <button onclick="doLogin()">Einloggen</button>
+    <button onclick="doLogin()" id="loginBtn">Einloggen</button>
     <div class="err" id="err"></div>
   </div>
 </div>
-<div class="app" id="app">
+<div class="app" id="app" style="display:none">
   <header><h1 id="hdrTitle">🍽️ KüchenVorrat</h1><button onclick="doLogout()">🔒</button></header>
   <div class="tabs" id="tabsBar">
     <button class="tab on" data-tab="pantry">🍽 Vorrat</button>
@@ -301,13 +304,30 @@ let lastScanResult=null;
 
 // ══ LOGIN ══
 function doLogin(){
-  const pw=document.getElementById('pw'),err=document.getElementById('err');
-  if(pw.value===APP_PASSWORD){
-    _authenticated=true;err.textContent='';pw.value='';
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('app').classList.add('show');
-    renderAll();
-  } else { err.textContent='Falsches Passwort';pw.value='';pw.focus(); }
+  try{
+    const pw=document.getElementById('pw');
+    const err=document.getElementById('err');
+    const btn=document.getElementById('loginBtn');
+    if(!pw||!err){toast('Fehler: Elemente nicht gefunden');return}
+    if(pw.value===APP_PASSWORD){
+      _authenticated=true;
+      err.textContent='';
+      pw.value='';
+      btn.disabled=true;
+      btn.textContent='⏳ ...';
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').style.display='flex';
+      document.getElementById('app').classList.add('show');
+      try{renderAll()}catch(e){err.textContent='❌ '+e.message;document.getElementById('app').style.display='';btn.disabled=false;btn.textContent='Einloggen';return}
+    } else {
+      err.textContent='❌ Falsches Passwort';
+      pw.value='';
+      pw.focus();
+    }
+  }catch(e){
+    const err=document.getElementById('err');
+    if(err) err.textContent='❌ '+e.message;
+  }
 }
 document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doLogin()}});
 function doLogout(){_authenticated=false;location.reload()}
@@ -966,7 +986,7 @@ function renderAll(){
 function renderSettings(){}
 
 // ══ INIT ══
-checkAuth();
+try{checkAuth()}catch(e){console.error('Init error:',e)}
 </script>
 </body>
 </html>

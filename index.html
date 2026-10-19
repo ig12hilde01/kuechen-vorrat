@@ -3151,6 +3151,7 @@ function clearAllData() {
 //  PASSWORD PROTECT
 // ═══════════════════════════════════════════
 const APP_PASSWORD = 'kueche2024';
+let _authenticated = false;
 
 function attemptLogin() {
   const pw = document.getElementById('loginPassword');
@@ -3159,17 +3160,14 @@ function attemptLogin() {
   
   const val = pw.value;
   
-  // Check password
   if (val === APP_PASSWORD) {
-    try {
-      sessionStorage.setItem('kv_authenticated', '1');
-      err.textContent = '';
-      const overlay = document.getElementById('loginOverlay');
-      if (overlay) overlay.classList.add('hidden');
-      // Call initApp
-      if (typeof initApp === 'function') initApp();
-    } catch(e) {
-      err.textContent = '❌ Session-Fehler: ' + e.message;
+    // Direkt ohne sessionStorage — Safari blockiert das in Private Browsing
+    _authenticated = true;
+    err.textContent = '';
+    const overlay = document.getElementById('loginOverlay');
+    if (overlay) overlay.classList.add('hidden');
+    if (typeof initApp === 'function') {
+      try { initApp(); } catch(e) { err.textContent = '❌ App-Fehler: ' + e.message; }
     }
   } else {
     err.textContent = '❌ Falsches Passwort – nochmal versuchen';
@@ -3179,13 +3177,14 @@ function attemptLogin() {
 }
 
 function logout() {
-  sessionStorage.removeItem('kv_authenticated');
+  _authenticated = false;
   location.reload();
 }
 
 function checkAuth() {
-  if (sessionStorage.getItem('kv_authenticated') === '1') {
-    document.getElementById('loginOverlay').classList.add('hidden');
+  if (_authenticated) {
+    const overlay = document.getElementById('loginOverlay');
+    if (overlay) overlay.classList.add('hidden');
     initApp();
     return true;
   }

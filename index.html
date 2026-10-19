@@ -126,7 +126,10 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
   <main>
     <div class="tpage on" id="tp-pantry">
       <div class="stats" id="statsBar"></div>
-      <div class="search"><input type="text" id="searchInput" placeholder="Suchen..." oninput="renderPantry()"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="search" style="flex:1;margin-bottom:0"><input type="text" id="searchInput" placeholder="Suchen..." oninput="renderPantry()"></div>
+        <button onclick="scanBarcode()" style="width:42px;height:42px;background:#16213e;border:1px solid #333;border-radius:10px;font-size:1.2rem;cursor:pointer;flex-shrink:0" title="Barcode scannen">📷</button>
+      </div>
       <div class="pills" id="catPills"></div>
       <div id="prodList"></div>
     </div>

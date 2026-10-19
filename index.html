@@ -77,6 +77,8 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
 .fg input:focus,.fg select:focus{border-color:var(--pri)}
 .fg option{background:var(--bg)}
 .fg textarea{min-height:60px;resize:vertical}
+.fg-row{display:flex;gap:8px}
+.fg-row>*{flex:1}
 .mbtns{display:flex;gap:10px;margin-top:18px}
 .mbtns button{flex:1;padding:13px;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;-webkit-appearance:none}
 .mbtns .cancel{background:#333;color:#ccc}
@@ -101,6 +103,12 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
 .wday .wmeal{font-size:.85rem;padding:3px 0;display:flex;justify-content:space-between}
 .wmeal .wt{color:var(--sub);font-size:.75rem}
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid #333;padding:10px 20px;border-radius:10px;font-size:.85rem;color:#fff;z-index:200;transition:opacity .3s;pointer-events:none}
+.qr-wrap{text-align:center;padding:20px}
+.qr-wrap canvas{border:4px solid var(--card);border-radius:8px}
+.lookup-btn{background:var(--green)!important;color:#fff;border:1px solid var(--green)!important;width:auto!important;padding:0 10px!important;border-radius:10px!important;font-size:1rem!important;flex-shrink:0;cursor:pointer}
+.prod-detail{margin-top:10px}
+.prod-detail div{padding:6px 0;border-bottom:1px solid #222;font-size:.85rem}
+.prod-detail .label{color:var(--sub);font-size:.75rem;text-transform:uppercase}
 </style>
 </head>
 <body>
@@ -128,7 +136,8 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
       <div class="stats" id="statsBar"></div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <div class="search" style="flex:1;margin-bottom:0"><input type="text" id="searchInput" placeholder="Suchen..." oninput="renderPantry()"></div>
-        <button onclick="scanBarcode()" style="width:42px;height:42px;background:#16213e;border:1px solid #333;border-radius:10px;font-size:1.2rem;cursor:pointer;flex-shrink:0" title="Barcode scannen">📷</button>
+        <button onclick="scanProduct()" style="width:42px;height:42px;background:#16213e;border:1px solid #333;border-radius:10px;font-size:1.2rem;cursor:pointer;flex-shrink:0" title="Produkt-Barcode scannen">📷</button>
+        <button onclick="scanLocation()" style="width:42px;height:42px;background:#16213e;border:1px solid #333;border-radius:10px;font-size:1.2rem;cursor:pointer;flex-shrink:0" title="Lagerplatz-Code scannen">🏷</button>
       </div>
       <div class="pills" id="catPills"></div>
       <div id="prodList"></div>
@@ -168,11 +177,17 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
   </main>
   <button class="fab" id="fabBtn" onclick="fabClick()">+</button>
 </div>
+
+<!-- PRODUCT MODAL -->
 <div class="modal" id="mProd">
   <div class="modal-body">
     <h2 id="mProdTitle">Produkt hinzufügen</h2>
     <div class="fg"><label>Name *</label><input type="text" id="fPName" placeholder="z.B. Nudeln"></div>
-    <div class="fg"><label>Barcode</label><input type="text" id="fPBarcode" placeholder="Optional" inputmode="numeric"></div>
+    <div class="fg" style="display:flex;gap:8px">
+      <div style="flex:1"><label>Barcode</label><input type="text" id="fPBarcode" placeholder="Optional" inputmode="numeric"></div>
+      <button onclick="doOnlineLookup()" id="lookupBtn" class="lookup-btn" title="Online suchen">🔍</button>
+    </div>
+    <div class="fg" id="lookupInfo" style="display:none;background:#16213e;border-radius:10px;padding:12px;margin-bottom:14px"></div>
     <div class="fg"><label>Kategorie</label>
       <select id="fPCat">
         <option value="Nudeln">Nudeln</option><option value="Reis">Reis</option><option value="Konserven">Konserven</option>
@@ -180,18 +195,23 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
         <option value="Mehlhelfer">Mehlhelfer</option><option value="Süßes">Süßes</option><option value="Getränke">Getränke</option>
         <option value="Kühlregal">Kühlregal</option><option value="Frischkost">Frischkost</option><option value="Obst">Obst</option>
         <option value="Gemüse">Gemüse</option><option value="Fleisch">Fleisch</option><option value="Käse">Käse</option>
-        <option value="Tiefkühler">Tiefkühler</option><option value="Sonstiges">Sonstiges</option>
+        <option value="Tiefkühler">Tiefkühler</option><option value="Bier">Bier</option><option value="Sonstiges">Sonstiges</option>
       </select>
     </div>
-    <div class="fg"><label>Menge *</label><input type="number" id="fPQty" placeholder="z.B. 3" min="0"></div>
-    <div class="fg"><label>Einheit</label>
-      <select id="fPUnit"><option value="Stk">Stück</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option></select>
+    <div class="fg-row">
+      <div class="fg"><label>Menge *</label><input type="number" id="fPQty" placeholder="z.B. 3" min="0"></div>
+      <div class="fg"><label>Einheit</label>
+        <select id="fPUnit"><option value="Stk">Stück</option><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="l">l</option></select>
+      </div>
     </div>
-    <div class="fg"><label>Gebindegröße</label><input type="text" id="fPPkg" placeholder="z.B. 500ml"></div>
-    <div class="fg"><label>Verfallsdatum</label><input type="date" id="fPExp"></div>
+    <div class="fg-row">
+      <div class="fg"><label>Gebindegröße</label><input type="text" id="fPPkg" placeholder="z.B. 500ml"></div>
+      <div class="fg"><label>Verfallsdatum</label><input type="date" id="fPExp"></div>
+    </div>
     <div class="fg"><label>Lagerplatz</label>
       <select id="fPLoc"><option value="">— Ohne Lagerplatz —</option></select>
     </div>
+    <div class="fg"><label>Marke</label><input type="text" id="fPBrand" placeholder="z.B. De Luque"></div>
     <div class="fg"><label>Bemerkung</label><textarea id="fPNote" placeholder="Optional"></textarea></div>
     <div class="mbtns">
       <button class="cancel" onclick="closeM('mProd')">Abbrechen</button>
@@ -199,6 +219,8 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
     </div>
   </div>
 </div>
+
+<!-- LOCATION MODAL -->
 <div class="modal" id="mLoc">
   <div class="modal-body">
     <h2 id="mLocTitle">Lagerplatz hinzufügen</h2>
@@ -217,11 +239,41 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
     </div>
   </div>
 </div>
+
+<!-- QR CODE MODAL -->
+<div class="modal" id="mQr">
+  <div class="modal-body">
+    <h2 id="qrTitle">QR Code</h2>
+    <div class="qr-wrap"><div id="qrContainer"></div></div>
+    <div id="qrInfo" style="color:var(--sub);font-size:.85rem;margin-bottom:16px;text-align:center"></div>
+    <div class="mbtns">
+      <button class="cancel" onclick="closeM('mQr')">Schließen</button>
+      <button class="save" onclick="printQR()">🖨 Drucken</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOCATION VIEW MODAL -->
+<div class="modal" id="mLocView">
+  <div class="modal-body">
+    <h2 id="locViewTitle">Lagerplatz</h2>
+    <div id="locViewContent"></div>
+    <div class="mbtns">
+      <button class="cancel" onclick="closeM('mLocView')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCANNER -->
 <div class="scanner-wrap" id="scannerWrap">
   <div id="scannerReader" style="flex:1;position:relative"></div>
   <div class="scan-result" id="scanResult" style="display:none"></div>
-  <div class="scanner-bar"><button onclick="stopScanner()">⏹ Stopp</button></div>
+  <div class="scanner-bar">
+    <button onclick="stopScanner()">⏹ Stopp</button>
+  </div>
 </div>
+
+<!-- CONFIRM -->
 <div class="modal" id="mConfirm">
   <div class="modal-body" style="text-align:center">
     <h2>Bist du sicher?</h2>
@@ -232,6 +284,7 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
     </div>
   </div>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
@@ -243,6 +296,8 @@ function saveData(){localStorage.setItem(DKEY,JSON.stringify({products:data.prod
 function defaultData(){return{products:[],locations:[],shopping:[],appliances:['herd','ofen','mikrowelle','kaffeemaschine'],weekPlan:null}}
 let data=loadData();
 let curTab='pantry',catFilter='all',recipeFilter='all';
+let currentScanMode='product'; // 'product', 'location'
+let lastScanResult=null;
 
 // ══ LOGIN ══
 function doLogin(){
@@ -322,7 +377,7 @@ function renderPantry(){
 
 function setCatFilter(f,el){catFilter=f;document.querySelectorAll('#catPills .pill').forEach(p=>p.classList.remove('on'));el.classList.add('on');renderPantry()}
 
-function catEmoji(c){const m={'Nudeln':'🍝','Reis':'🍚','Konserven':'🥫','Gewürze':'🧂','Öl':'🫒','Saucen':'🍶','Mehlhelfer':'🌾','Süßes':'🍫','Getränke':'🥤','Kühlregal':'🧊','Frischkost':'🥗','Obst':'🍎','Gemüse':'🥕','Fleisch':'🥩','Käse':'🧀','Tiefkühler':'❄️','Sonstiges':'📦'};return m[c]||'📦'}
+function catEmoji(c){const m={'Nudeln':'🍝','Reis':'🍚','Konserven':'🥫','Gewürze':'🧂','Öl':'🫒','Saucen':'🍶','Mehlhelfer':'🌾','Süßes':'🍫','Getränke':'🥤','Kühlregal':'🧊','Frischkost':'🥗','Obst':'🍎','Gemüse':'🥕','Fleisch':'🥩','Käse':'🧀','Tiefkühler':'❄️','Bier':'🍺','Sonstiges':'📦'};return m[c]||'📦'}
 
 function expStatus(exp){
   if(!exp)return null;
@@ -334,28 +389,30 @@ function expStatus(exp){
 }
 
 // ══ PRODUCT CRUD ══
-function openAddProduct(editId){
+function openAddProduct(editId, prefillLocId){
   document.getElementById('mProdTitle').textContent=editId?'Produkt bearbeiten':'Produkt hinzufügen';
+  // Reset
+  document.getElementById('lookupInfo').style.display='none';
   const locs=data.locations.sort((a,b)=>a.name.localeCompare(b.name));
   let opts='<option value="">— Ohne Lagerplatz —</option>';
   locs.forEach(l=>{opts+='<option value="'+l.id+'">'+esc(l.name)+'</option>'});
   document.getElementById('fPLoc').innerHTML=opts;
   if(editId){
     const p=data.products.find(x=>x.id===editId);if(!p)return;
-    document.getElementById('mProdTitle').textContent='Produkt bearbeiten';
     document.getElementById('fPName').value=p.name;document.getElementById('fPBarcode').value=p.barcode||'';
     document.getElementById('fPCat').value=p.cat||'Sonstiges';document.getElementById('fPQty').value=p.qty;
     document.getElementById('fPUnit').value=p.unit||'g';document.getElementById('fPPkg').value=p.pkg||'';
     document.getElementById('fPExp').value=p.exp||'';document.getElementById('fPLoc').value=p.locId||'';
-    document.getElementById('fPNote').value=p.note||'';
+    document.getElementById('fPBrand').value=p.brand||'';document.getElementById('fPNote').value=p.note||'';
     document.getElementById('mProdSave').onclick=()=>saveProduct(editId);
   } else {
     document.getElementById('fPName').value='';document.getElementById('fPBarcode').value='';
     document.getElementById('fPQty').value='';document.getElementById('fPPkg').value='';
     document.getElementById('fPExp').value='';document.getElementById('fPLoc').selectedIndex=0;
-    document.getElementById('fPNote').value='';
+    document.getElementById('fPBrand').value='';document.getElementById('fPNote').value='';
     document.getElementById('mProdSave').onclick=()=>saveProduct(null);
   }
+  if(prefillLocId) document.getElementById('fPLoc').value=prefillLocId;
   document.getElementById('mProd').classList.add('on');
   setTimeout(()=>document.getElementById('fPName').focus(),150);
 }
@@ -365,7 +422,18 @@ function editProduct(id){openAddProduct(id)}
 function saveProduct(editId){
   const name=document.getElementById('fPName').value.trim();
   if(!name){toast('Name fehlt!');return}
-  const obj={name:name,barcode:document.getElementById('fPBarcode').value.trim(),cat:document.getElementById('fPCat').value,qty:parseInt(document.getElementById('fPQty').value)||0,unit:document.getElementById('fPUnit').value,pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,locId:document.getElementById('fPLoc').value||null,note:document.getElementById('fPNote').value.trim()};
+  const obj={
+    name:name,
+    barcode:document.getElementById('fPBarcode').value.trim(),
+    cat:document.getElementById('fPCat').value,
+    qty:parseInt(document.getElementById('fPQty').value)||0,
+    unit:document.getElementById('fPUnit').value,
+    pkg:document.getElementById('fPPkg').value.trim(),
+    exp:document.getElementById('fPExp').value,
+    locId:document.getElementById('fPLoc').value||null,
+    brand:document.getElementById('fPBrand').value.trim(),
+    note:document.getElementById('fPNote').value.trim()
+  };
   if(editId){const p=data.products.find(x=>x.id===editId);if(!p)return;Object.assign(p,obj);toast('✅ Aktualisiert')}
   else{data.products.push({id:uid(),...obj});toast('✅ Gespeichert')}
   saveData();closeM('mProd');renderAll();
@@ -376,10 +444,121 @@ function delProduct(id){
   showConfirm('"'+p.name+'" wirklich löschen?',()=>{data.products=data.products.filter(x=>x.id!==id);saveData();renderAll();toast('🗍 Gelöscht')});
 }
 
+// ══ ONLINE LOOKUP ══
+async function doOnlineLookup(){
+  const code=document.getElementById('fPBarcode').value.trim();
+  if(!code){toast('Barcode eingeben!');return}
+  const btn=document.getElementById('lookupBtn');
+  btn.textContent='⏳';btn.disabled=true;
+  try{
+    const result=await lookupOnline(code);
+    if(result){
+      document.getElementById('lookupInfo').style.display='block';
+      let info='<div style="font-weight:600;margin-bottom:6px">✅ '+esc(result.name)+(result.brand?' · '+esc(result.brand):'')+'</div>';
+      if(result.pkg) info+='<div style="color:var(--sub);font-size:.8rem">📦 '+esc(result.pkg)+'</div>';
+      if(result.brand) info+='<div style="color:var(--sub);font-size:.8rem">🏷 '+esc(result.brand)+'</div>';
+      if(result.cat) info+='<div style="color:var(--sub);font-size:.8rem">📁 '+esc(result.cat)+'</div>';
+      document.getElementById('lookupInfo').innerHTML=info;
+      // Auto-fill form
+      if(!document.getElementById('fPName').value) document.getElementById('fPName').value=result.name;
+      if(!document.getElementById('fPBrand').value && result.brand) document.getElementById('fPBrand').value=result.brand;
+      if(!document.getElementById('fPPkg').value && result.pkg) document.getElementById('fPPkg').value=result.pkg;
+      if(!document.getElementById('fPNote').value && result.note) document.getElementById('fPNote').value=result.note;
+      if(result.origin) document.getElementById('fPNote').value=(document.getElementById('fPNote').value?document.getElementById('fPNote').value+'\n':'')+'Herkunft: '+result.origin;
+      toast('✅ Produkt gefunden!');
+    } else {
+      document.getElementById('lookupInfo').style.display='block';
+      document.getElementById('lookupInfo').innerHTML='<div style="color:var(--red)">❌ Nicht gefunden</div>';
+      toast('Nicht in Online-Datenbanken');
+    }
+  }catch(e){toast('❌ Fehler: '+e.message)}
+  btn.textContent='🔍';btn.disabled=false;
+}
+
+async function lookupOnline(code){
+  // 1. OpenFoodFacts API
+  try{
+    const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)});
+    const j=await r.json();
+    if(j.status===1&&j.product){
+      const p=j.product;
+      return{
+        name:p.product_name||p.product_name_de||p.product_name_en||'',
+        brand:p.brands||'',
+        cat:mapCategory(p.categories_tags||[]),
+        pkg:extractPkg(p.quantity||p.serving_quantity||''),
+        unit:extractUnit(p.quantity||p.serving_quantity||''),
+        origin:p.countries||'',
+        ingredients:p.ingredients_text||'',
+        barcode:code,
+        note:'Quelle: OpenFoodFacts'
+      };
+    }
+  }catch(e){}
+  // 2. OpenBreweryDB
+  try{
+    const r=await fetch('https://api.openbrewerydb.org/v1/beers?barcode='+code,{signal:AbortSignal.timeout(5000)});
+    const j=await r.json();
+    if(j&&j.length){
+      const b=j[0];
+      return{
+        name:b.name||'Unbekanntes Bier',
+        brand:b.brand_name||b.brewery_name||'',
+        cat:'Bier',
+        pkg:b.volume_label||'',
+        unit:extractUnit(b.volume_label||''),
+        abv:b.abv?b.abv.toFixed(1)+'%':'',
+        ibu:b.ibu||'',
+        barcode:code,
+        note:'Quelle: OpenBreweryDB'
+      };
+    }
+  }catch(e){}
+  return null;
+}
+
+function mapCategory(tags){
+  const t=(tags||[]).join(',').toLowerCase();
+  if(/noodle|pasta/.test(t))return'Nudeln';
+  if(/rice/.test(t))return'Reis';
+  if(/canned/.test(t))return'Konserven';
+  if(/spice|herb|seasoning/.test(t))return'Gewürze';
+  if(/oil/.test(t))return'Öl';
+  if(/sauce|ketchup/.test(t))return'Saucen';
+  if(/flour|grain|cereal|oat/.test(t))return'Mehlhelfer';
+  if(/sweet|chocolate|candy|cookie|cake/.test(t))return'Süßes';
+  if(/drink|beverage|juice|water|soda/.test(t))return'Getränke';
+  if(/fridge|dairy|milk|cheese|yogurt/.test(t))return'Kühlregal';
+  if(/fresh|salad|fruit|vegetable/.test(t))return'Frischkost';
+  if(/fruit/.test(t))return'Obst';
+  if(/vegetable/.test(t))return'Gemüse';
+  if(/meat|beef|pork|chicken|ham/.test(t))return'Fleisch';
+  if(/cheese/.test(t))return'Käse';
+  return'Sonstiges';
+}
+
+function extractPkg(qty){
+  if(!qty)return'';
+  // e.g. "500 ml" -> "500ml", "1 kg" -> "1kg", "250 g" -> "250g"
+  const m=qty.match(/^(\d+[\.,\d]*)\s*(g|kg|ml|l|cl|dl)?$/i);
+  if(m)return m[1].replace(',','.')+(m[2]?m[2].toLowerCase():'');
+  return qty;
+}
+
+function extractUnit(qty){
+  if(!qty)return'';
+  if(qty.includes('l'))return'l';
+  if(qty.includes('ml'))return'ml';
+  if(qty.includes('kg'))return'kg';
+  if(qty.includes('g'))return'g';
+  return'';
+}
+
 // ══ SCANNER ══
 let html5QrCode=null,scannerRunning=false;
 
-function scanBarcode(){
+function scanProduct(){
+  currentScanMode='product';
   document.getElementById('scannerWrap').classList.add('on');
   document.getElementById('scanResult').style.display='none';
   scannerRunning=true;
@@ -389,32 +568,69 @@ function scanBarcode(){
   }catch(e){toast('❌ Kamera nicht verfügbar');stopScanner()}
 }
 
+function scanLocation(){
+  currentScanMode='location';
+  document.getElementById('scannerWrap').classList.add('on');
+  document.getElementById('scanResult').style.display='block';
+  document.getElementById('scanResult').textContent='🏷 Lageplatz-Code scannen...';
+  scannerRunning=true;
+  try{
+    html5QrCode=new Html5Qrcode('scannerReader',false);
+    html5QrCode.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},onScan,()=>{});
+  }catch(e){toast('❌ Kamera nicht verfügbar');stopScanner()}
+}
+
 function onScan(text){
   scannerRunning=false;stopScanner();
-  document.getElementById('scanResult').textContent='✅ Barcode: '+text;
-  document.getElementById('scanResult').style.display='block';
-  const found=barcodeLookup(text);
-  if(found){
-    if(confirm('Produkt gefunden:\n'+found.name+' ('+found.pkg+')\n\nIn den Vorrat übernehmen?')){
-      const existing=data.products.find(p=>p.name.toLowerCase()===found.name.toLowerCase());
-      if(existing){existing.qty+=1;toast('✅ '+found.name+' +1')}
-      else{data.products.push({id:uid(),name:found.name,barcode:text,cat:found.cat||'Sonstiges',qty:1,unit:'Stk',pkg:found.pkg||'',exp:'',locId:null,note:''});toast('✅ '+found.name+' hinzugefügt')}
-      saveData();renderAll();
+  lastScanResult=text;
+  
+  if(currentScanMode==='location'){
+    // Check if it matches a location code (6-char alphanumeric)
+    const loc=data.locations.find(l=>l.code===text.toUpperCase());
+    if(loc){
+      document.getElementById('scanResult').textContent='📍 '+loc.name+' ('+loc.cat+')';
+      viewLocation(loc);
+    } else {
+      document.getElementById('scanResult').textContent='❌ Kein Lagerplatz mit Code: '+text;
+      toast('Lagerplatz nicht gefunden');
     }
   } else {
-    document.getElementById('fPBarcode').value=text;
-    switchTab('pantry');openAddProduct();
-    toast('📝 Manuell ausfüllen');
+    // Product barcode
+    document.getElementById('scanResult').textContent='📷 Barcode: '+text;
+    handleProductScan(text);
   }
 }
 
-function barcodeLookup(code){
-  const db={
-    '4006381333934':{name:'Milka Schokolade',cat:'Süßes',pkg:'100g'},
-    '4000220000001':{name:'Haferflocken',cat:'Mehlhelfer',pkg:'500g'},
-    '4260123456789':{name:'Ketchup',cat:'Saucen',pkg:'500ml'},
-  };
-  return db[code]||null;
+async function handleProductScan(code){
+  // 1. Check local DB
+  const local=data.products.find(p=>p.barcode===code);
+  if(local){
+    if(confirm('"'+local.name+'" bereits vorhanden.\n\nMenge +1?\nAktuell: '+local.qty+' '+local.unit)){
+      local.qty+=1;saveData();renderAll();toast('✅ '+local.name+' +1');
+    }
+    return;
+  }
+  
+  // 2. Try online lookup
+  toast('🔍 Online-Suche...');
+  const online=await lookupOnline(code);
+  if(online){
+    // Open product form pre-filled
+    document.getElementById('fPBarcode').value=code;
+    document.getElementById('fPName').value=online.name;
+    if(online.brand)document.getElementById('fPBrand').value=online.brand;
+    if(online.pkg)document.getElementById('fPPkg').value=online.pkg;
+    document.getElementById('fPCat').value=online.cat||'Sonstiges';
+    document.getElementById('mProdSave').onclick=()=>saveProduct(null);
+    openAddProduct(null,null);
+    toast('✅ Daten aus Online-Datenbank');
+  } else {
+    // No online data: open blank form
+    document.getElementById('fPBarcode').value=code;
+    document.getElementById('mProdSave').onclick=()=>saveProduct(null);
+    openAddProduct(null,null);
+    toast('📝 Manuell ausfüllen');
+  }
 }
 
 function stopScanner(){
@@ -437,7 +653,13 @@ function renderLocations(){
     html+='<div class="sh">📁 '+cat.charAt(0).toUpperCase()+cat.slice(1)+'</div>';
     groups[cat].forEach(l=>{
       const count=data.products.filter(p=>p.locId===l.id).length;
-      html+='<div class="card"><div class="top"><div><div class="title">'+esc(l.name)+'</div><div class="sub">'+count+' Produkt'+(count!==1?'e':'')+' · Code: <span class="badge badge-loc">'+esc(l.code)+'</span></div></div><div class="act"><button class="del" onclick="delLocation(\''+l.id+'\')">🗑</button></div></div></div>';
+      const products=data.products.filter(p=>p.locId===l.id);
+      html+='<div class="card"><div class="top"><div><div class="title">'+esc(l.name)+'</div><div class="sub">'+count+' Produkt'+(count!==1?'e':'')+' · Code: <span class="badge badge-loc">'+esc(l.code)+'</span></div></div><div class="act">'+
+        '<button onclick="showLocQR(\\''+l.id+'\\')" title="QR Code">📱</button>'+
+        '<button onclick="viewLocationById(\\''+l.id+'\\')" title="Inhalte">👁</button>'+
+        '<button onclick="setLocScanTarget(\\''+l.id+'\\')" title="Produkt zuweisen">➕</button>'+
+        '<button class="del" onclick="delLocation(\\''+l.id+'\\')">🗑</button>'+
+      '</div></div></div>';
     });
   });
   document.getElementById('locList').innerHTML=html;
@@ -454,8 +676,21 @@ function openAddLocation(){
 function saveLocation(){
   const name=document.getElementById('fLName').value.trim();
   if(!name){toast('Name nötig!');return}
-  data.locations.push({id:uid(),name:name,cat:document.getElementById('fLCat').value,code:Math.random().toString(36).substr(2,6).toUpperCase()});
-  saveData();closeM('mLoc');renderAll();toast('✅ Lagerplatz gespeichert');
+  const newLoc={id:uid(),name:name,cat:document.getElementById('fLCat').value,code:genLocationCode()};
+  data.locations.push(newLoc);
+  saveData();closeM('mLoc');renderAll();toast('✅ '+name+' gespeichert');
+  // Show QR code
+  setTimeout(()=>showLocQR(newLoc.id),300);
+}
+
+function genLocationCode(){
+  // 6-char alphanumeric code
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code='';
+  for(let i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)];
+  // Ensure uniqueness
+  if(data.locations.find(l=>l.code===code)) return genLocationCode();
+  return code;
 }
 
 function delLocation(id){
@@ -466,6 +701,127 @@ function delLocation(id){
     data.locations=data.locations.filter(l=>l.id!==id);
     saveData();renderAll();toast('🗍 Gelöscht');
   });
+}
+
+// Location QR code
+function showLocQR(locId){
+  const loc=data.locations.find(l=>l.id===locId);if(!loc)return;
+  document.getElementById('qrTitle').textContent='📱 '+loc.name;
+  document.getElementById('qrInfo').textContent='Code: '+loc.code+' | '+loc.cat;
+  const container=document.getElementById('qrContainer');
+  container.innerHTML='';
+  if(typeof QRCode!=='undefined'){
+    const canvas=document.createElement('canvas');
+    QRCode.toCanvas(canvas,loc.code,{width:200,margin:1},()=>{
+      canvas.style.width='200px';canvas.style.height='200px';
+      container.appendChild(canvas);
+    });
+  }
+  document.getElementById('mQr').classList.add('on');
+}
+
+function printQR(){
+  const content=document.getElementById('qrContainer').innerHTML;
+  const title=document.getElementById('qrTitle').textContent;
+  const info=document.getElementById('qrInfo').textContent;
+  const w=window.open('','','width=300,height=400');
+  if(!w){toast('Pop-up blockiert!');return}
+  w.document.write('<!DOCTYPE html><html><head><title>'+esc(title)+'</title><style>body{font-family:sans-serif;text-align:center;padding:20px}h1{margin:10px 0}canvas{border:2px solid #ccc;border-radius:8px}@media print{body{margin:0}}</style></head><body><h1>'+esc(title)+'</h1><p>'+esc(info)+'</p>'+content+'</body></html>');
+  w.document.close();
+  setTimeout(()=>{w.print()},500);
+}
+
+// Location view
+function viewLocationById(id){viewLocation(data.locations.find(l=>l.id===id))}
+
+function viewLocation(loc){
+  if(!loc)return;
+  document.getElementById('locViewTitle').textContent='📍 '+loc.name;
+  const products=data.products.filter(p=>p.locId===loc.id);
+  if(!products.length){
+    document.getElementById('locViewContent').innerHTML='<div class="empty"><p>Keine Produkte an diesem Ort.</p></div>';
+  } else {
+    document.getElementById('locViewContent').innerHTML=products.map(p=>{
+      const exp=expStatus(p.exp);
+      return '<div class="card" style="display:flex;justify-content:space-between"><div><div class="title">'+esc(p.name)+'</div><div class="sub">'+p.qty+' '+esc(p.unit)+(p.pkg?' · '+esc(p.pkg):'')+(exp?' <span class="badge '+exp.cls+'">'+exp.lbl+'</span>':'')+'</div></div><div class="act"><button onclick="closeM(\\'mLocView\\');editProduct(\\''+p.id+'\')">✏️</button><button class="del" onclick="closeM(\\'mLocView\\');delProduct(\\''+p.id+'\')">🗑</button></div></div>';
+    }).join('');
+  }
+  document.getElementById('mLocView').classList.add('on');
+}
+
+function setLocScanTarget(locId){
+  const loc=data.locations.find(l=>l.id===locId);if(!loc)return;
+  toast('🏷 Jetzt Produkt-Barcode scannen für '+loc.name);
+  // Set pending location assignment
+  window._pendingLocId=locId;
+  // Open product scanner, then when product scanned, assign to this location
+  switchTab('pantry');
+  scanProduct();
+}
+
+// Override onScan when there's a pending location
+const originalOnScan=onScan;
+// We handle this in the main onScan by checking window._pendingLocId
+
+// Patch scanProduct to support pending location
+const origScanProduct=scanProduct;
+function scanProduct(){
+  window._pendingLocId=window._pendingLocId||null;
+  origScanProduct();
+}
+
+// Patch onScan to handle pending location assignment
+function onScan(text){
+  scannerRunning=false;stopScanner();
+  lastScanResult=text;
+  
+  // If there's a pending location, assign scanned product to it
+  if(window._pendingLocId){
+    const code=text;
+    const local=data.products.find(p=>p.barcode===code);
+    if(local){
+      local.locId=window._pendingLocId;
+      saveData();renderAll();toast('✅ '+local.name+' → '+data.locations.find(l=>l.id===window._pendingLocId).name);
+    } else {
+      // New product
+      document.getElementById('fPBarcode').value=code;
+      const pendingLocId=window._pendingLocId;
+      document.getElementById('mProdSave').onclick=()=>{
+        const name=document.getElementById('fPName').value.trim();
+        if(!name){toast('Name fehlt!');return}
+        data.products.push({
+          id:uid(),name:name,barcode:code,
+          cat:document.getElementById('fPCat').value,
+          qty:parseInt(document.getElementById('fPQty').value)||1,
+          unit:document.getElementById('fPUnit').value,
+          pkg:document.getElementById('fPPkg').value.trim(),
+          exp:document.getElementById('fPExp').value,
+          locId:pendingLocId,
+          brand:document.getElementById('fPBrand').value.trim(),
+          note:'Quelle: Barcode-Sync'+(document.getElementById('fPNote').value?' · '+document.getElementById('fPNote').value:'')
+        });
+        saveData();closeM('mProd');renderAll();toast('✅ Gespeichert → '+data.locations.find(l=>l.id===pendingLocId).name);
+        window._pendingLocId=null;
+      };
+      openAddProduct(null,pendingLocId);
+    }
+    window._pendingLocId=null;
+    return;
+  }
+  
+  if(currentScanMode==='location'){
+    const loc=data.locations.find(l=>l.code===text.toUpperCase());
+    if(loc){
+      document.getElementById('scanResult').textContent='📍 '+loc.name+' ('+loc.cat+')';
+      viewLocation(loc);
+    } else {
+      document.getElementById('scanResult').textContent='❌ Kein Lagerplatz: '+text;
+      toast('Lagerplatz nicht gefunden');
+    }
+  } else {
+    document.getElementById('scanResult').textContent='📷 Barcode: '+text;
+    handleProductScan(text);
+  }
 }
 
 // ══ RECIPES ══

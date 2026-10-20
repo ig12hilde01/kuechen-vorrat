@@ -12,8 +12,8 @@
 :root{--bg:#0f0f1a;--card:#1a1a2e;--pri:#6c63ff;--txt:#e0e0e0;--sub:#888;--red:#e74c3c;--green:#27ae60;--amber:#f39c12;--pad:16px}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;min-height:100dvh}
-.login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;z-index:9999}
-.login.hidden{display:none}
+.login{position:fixed;inset:0;background:var(--bg);display:flex!important;align-items:center;justify-content:center;flex-direction:column;padding:24px;z-index:9999}
+.login.hidden{display:none!important}
 .lcard{background:var(--card);border-radius:16px;padding:28px 24px;width:100%;max-width:300px;text-align:center}
 .lcard h1{font-size:1.3rem;margin-bottom:6px}
 .lcard .sub{color:var(--sub);font-size:.8rem;margin-bottom:20px}
@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 .lcard button:active{background:#5a52e0;transform:scale(.97)}
 .err{color:var(--red);font-size:.8rem;margin-top:10px;min-height:18px}
 .app{display:none;flex-direction:column;height:100vh;height:100dvh}
-.app.show{display:flex}
+.app.show{display:flex!important}
 header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#16213e;border-bottom:1px solid #2a2a4a;flex-shrink:0}
 header h1{font-size:1.1rem;color:var(--pri)}
 header button{background:none;border:1px solid #333;color:var(--sub);padding:6px 12px;border-radius:8px;font-size:.75rem;cursor:pointer}
@@ -115,13 +115,15 @@ main{flex:1;overflow-y:auto;padding:var(--pad);padding-bottom:80px}
 </style>
 </head>
 <body>
-<div class="login" id="loginScreen" style="display:flex">
+<div class="login" id="loginScreen" style="display:flex !important">
   <div class="lcard">
     <h1>🍽️ KüchenVorrat</h1>
-    <div class="sub">Lagerverwaltung</div>
-    <input type="password" id="pw" placeholder="Passwort" inputmode="text" autocomplete="off" autofocus>
-    <button onclick="doLogin()" id="loginBtn">Einloggen</button>
+    <div class="sub">Lagerverwaltung · v14.1</div>
+    <input type="text" id="pw" placeholder="Passwort eingeben..." inputmode="text" autocomplete="off" autofocus>
+    <div id="hint" style="color:var(--sub);font-size:.7rem;margin:8px 0 12px">Tipp: Passwort + Einloggen-Button</div>
+    <button onclick="doLogin()" id="loginBtn" style="pointer-events:auto;cursor:pointer">🔓 Einloggen</button>
     <div class="err" id="err"></div>
+    <div id="debug" style="color:#555;font-size:.65rem;margin-top:8px;word-break:break-all"></div>
   </div>
 </div>
 <div class="app" id="app" style="display:none">
@@ -305,31 +307,39 @@ let lastScanResult=null;
 // ══ LOGIN ══
 function doLogin(){
   try{
-    const pw=document.getElementById('pw');
-    const err=document.getElementById('err');
-    const btn=document.getElementById('loginBtn');
-    if(!pw||!err){toast('Fehler: Elemente nicht gefunden');return}
-    if(pw.value===APP_PASSWORD){
+    var pwEl=document.getElementById('pw');
+    var errEl=document.getElementById('err');
+    var btnEl=document.getElementById('loginBtn');
+    var debugEl=document.getElementById('debug');
+    if(!pwEl||!errEl){if(debugEl)debugEl.textContent='DOM ERROR';return}
+    var pw=pwEl.value;
+    if(debugEl)debugEl.textContent='PW len='+pw.length+' APP_PW len='+APP_PASSWORD.length+' match='+(pw===APP_PASSWORD);
+    if(pw===APP_PASSWORD){
       _authenticated=true;
-      err.textContent='';
-      pw.value='';
-      btn.disabled=true;
-      btn.textContent='⏳ ...';
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('app').style.display='flex';
-      document.getElementById('app').classList.add('show');
-      try{renderAll()}catch(e){err.textContent='❌ '+e.message;document.getElementById('app').style.display='';btn.disabled=false;btn.textContent='Einloggen';return}
+      errEl.textContent='';
+      pwEl.value='';
+      btnEl.disabled=true;
+      btnEl.textContent='⏳ ...';
+      if(debugEl)debugEl.textContent='AUTH OK';
+      var ls=document.getElementById('loginScreen');
+      if(ls)ls.classList.add('hidden');
+      var app=document.getElementById('app');
+      if(app){app.style.display='flex';app.classList.add('show')}
+      renderAll();
     } else {
-      err.textContent='❌ Falsches Passwort';
-      pw.value='';
-      pw.focus();
+      errEl.textContent='❌ Falsches Passwort — nochmal versuchen';
+      pwEl.value='';
+      pwEl.focus();
+      if(debugEl)debugEl.textContent='AUTH FAIL';
     }
   }catch(e){
-    const err=document.getElementById('err');
-    if(err) err.textContent='❌ '+e.message;
+    var errEl=document.getElementById('err');
+    var debugEl=document.getElementById('debug');
+    if(errEl)errEl.textContent='❌ '+e.message;
+    if(debugEl)debugEl.textContent='EXCEPTION: '+e.message;
   }
 }
-document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doLogin()}});
+document.addEventListener('DOMContentLoaded',function(){var pw=document.getElementById('pw');if(pw)pw.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doLogin()}})});
 function doLogout(){_authenticated=false;location.reload()}
 
 // ══ TABS ══
@@ -986,7 +996,7 @@ function renderAll(){
 function renderSettings(){}
 
 // ══ INIT ══
-try{checkAuth()}catch(e){console.error('Init error:',e)}
+// Login screen visible by default via CSS + inline style — no JS needed
 </script>
 </body>
 </html>

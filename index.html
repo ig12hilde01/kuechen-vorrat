@@ -258,11 +258,11 @@ async function initApp(){
 }
 
 /* ═══ TABS ═══ */
-function go(t,btn){
+async function go(t,btn){
   TAB=t;document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('on',b===btn)});
   var titles={pantry:'🍽 Vorrat',locations:'🗄 Lager',recipes:'📖 Rezepte',weekplan:'📅 Woche',shopping:'🛒 Liste',settings:'⚙️'};
   document.getElementById('hdrTitle').textContent=titles[t]||'Vorrat';
-  render();
+  await render();
 }
 function fabClick(){
   if(TAB==='pantry'||TAB==='locations')openAddProd();

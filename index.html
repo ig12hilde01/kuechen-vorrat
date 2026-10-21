@@ -213,18 +213,22 @@ function timeStr(ts){if(!ts)return'';var d=new Date(ts);return d.toLocaleDateStr
 /* ═══ LOGIN ═══ */
 function doLogin(){
   var pw=document.getElementById('pw'),err=document.getElementById('err'),btn=document.getElementById('loginBtn');
-  if(pw.value===PW){err.textContent='';pw.value='';btn.textContent='...';btn.disabled=true;
-    document.getElementById('login').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');document.getElementById('app').style.display='flex';
-    initApp();
+  if(pw.value===PW){
+    err.textContent='';pw.value='';btn.textContent='...';btn.disabled=true;
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').classList.remove('hidden');
+    try{initApp()}catch(e){console.error('Login init failed:',e);toast('DB-Fehler, versuche neu...');render()}
   } else {err.textContent='Falsches Passwort';pw.value='';pw.focus()}
 }
-document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doLogin()}});
+
 function doLogout(){_auth=false;location.reload()}
 
 /* ═══ INIT ═══ */
 async function initApp(){
-  cats=await dbGetAll('categories');
+  if(!DB){DB=await openDB()}
+  try{
+    cats=await dbGetAll('categories');
   rooms=await dbGetAll('rooms');
   locs=await dbGetAll('locations');
   products=await dbGetAll('products');
@@ -255,6 +259,7 @@ async function initApp(){
     cats=defaults;
   }
   go('pantry',document.querySelector('.tab'));
+  }catch(e){console.error('initApp error:',e)}
 }
 
 /* ═══ TABS ═══ */
@@ -271,8 +276,16 @@ function fabClick(){
 }
 
 /* ═══ HELPERS ═══ */
-function catEmoji(c){var found=cats.find(function(x){return x.name===c});return found?found.emoji:'📦'}
-function catColor(c){var found=cats.find(function(x){return x.name===c});return found?found.color:'#888'}
+function catEmoji(c){
+  if(!cats.length)return'📦';
+  var found=cats.find(function(x){return x.name===c});
+  return found?found.emoji:'📦';
+}
+function catColor(c){
+  if(!cats.length)return'#888';
+  var found=cats.find(function(x){return x.name===c});
+  return found?found.color:'#888';
+}
 function expSt(exp){
   if(!exp)return null;var now=Date.now(),d=Math.ceil((new Date(exp).getTime()-now)/864e5);
   if(d<0)return{l:(Math.abs(d)+'x abgelaufen'),c:'b-exp'};
@@ -760,9 +773,24 @@ async function clearDB(){showCf('ALLE Daten unwiderruflich löschen?',function()
 });}
 
 /* ═══ INIT ═══ */
-openDB().then(function(){
-  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doLogin()}});
-}).catch(function(e){console.error('DB init:',e)});
+document.addEventListener('DOMContentLoaded',function(){
+  // Setup login listener safely (DOM is ready)
+  var pwInput=document.getElementById('pw');
+  if(pwInput) pwInput.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){e.preventDefault();doLogin()}
+  });
+
+  // Open DB in background (non-blocking)
+  var dbInitDone=false;
+  openDB().then(function(){
+    dbInitDone=true;
+  }).catch(function(e){
+    console.warn('IndexedDB konnte nicht geöffnet werden:',e);
+  });
+
+  // Expose for inline onclick handlers
+  window._dbReady=function(){return dbInitDone};
+});
 </script>
 </body>
 </html>

@@ -300,7 +300,8 @@ async function render(){
 
 function renderPantry(main){
   var items=products.slice().sort(function(a,b){return(a.exp?new Date(a.exp):new Date('2999'))-(b.exp?new Date(b.exp):new Date('2999'))});
-  var search=document.getElementById('searchInput').value.toLowerCase();
+  var searchEl=document.getElementById('searchInput');
+  var search=searchEl?searchEl.value.toLowerCase():'';
   if(search)items=items.filter(function(p){return(p.name||'').toLowerCase().indexOf(search)>=0||(p.barcode||'').indexOf(search)>=0||(p.cat||'').toLowerCase().indexOf(search)>=0});
   if(CF!=='all')items=items.filter(function(p){return p.cat===CF});
   var total=products.length,exp=0,soon=0;

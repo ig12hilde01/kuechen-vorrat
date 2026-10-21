@@ -479,7 +479,7 @@ async function delLoc(id){
 function showQR(id){
   var loc=locs.find(function(l){return l.id===id});if(!loc)return;
   document.getElementById('qrTitle').textContent='📱 '+loc.name;
-  document.getElementById('qrInfo').textContent='Code: '+loc.code+' | '+loc.shelf?(loc.shelf+' · ':'')+(loc.compartment?loc.compartment+' Fach':'');
+  document.getElementById('qrInfo').textContent='Code: '+loc.code+' | '+(loc.shelf ? (loc.shelf + ' · ') : '') + (loc.compartment ? ('Fach ' + loc.compartment) : '');
   var c=document.getElementById('qrContainer');c.innerHTML='';
   if(typeof QRCode!=='undefined'){var cv=document.createElement('canvas');QRCode.toCanvas(cv,loc.code,{width:180,margin:1},function(){cv.style.width='180px';cv.style.height='180px';c.appendChild(cv)})}
   openM('mQr');

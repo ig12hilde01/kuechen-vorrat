@@ -2,616 +2,766 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>KüchenVorrat</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>KüchenVorrat DB</title>
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#1a1a2e;color:#e0e0e0}
-.card{background:#16213e;border-radius:12px;padding:14px 16px;margin-bottom:8px}
-input,select,textarea{width:100%;padding:12px;background:#0f0f1a;border:1px solid #333;border-radius:10px;color:#fff;font-size:1rem;outline:none}
-select option{background:#16213e}
-textarea{min-height:60px;resize:vertical}
-.btn{padding:12px 20px;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer}
-.btn-pri{background:#6c63ff;color:#fff}
-.btn-red{background:#e74c3c;color:#fff}
-.btn-sec{background:#333;color:#ccc}
-.btn-sm{padding:8px 14px;font-size:.85rem}
-.flex{display:flex;gap:8px}
-.flex>*{flex:1}
+:root{--bg:#0f0f1a;--card:#1a1a2e;--pri:#6c63ff;--txt:#e0e0e0;--sub:#888;--red:#e74c3c;--green:#27ae60;--amber:#f39c12}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;min-height:100dvh}
+.card{background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:8px}
+input,select,textarea{width:100%;padding:11px;background:var(--bg);border:1px solid #333;border-radius:10px;color:#fff;font-size:.95rem;outline:none;-webkit-appearance:none}
+select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
+.flex{display:flex;gap:8px}.flex>*{flex:1}
 .hidden{display:none!important}
+.btn{padding:11px 16px;border:none;border-radius:10px;font-size:.9rem;font-weight:600;cursor:pointer;-webkit-appearance:none}
+.btn-p{background:var(--pri);color:#fff}.btn-r{background:var(--red);color:#fff}
+.btn-s{background:#333;color:#ccc}.btn-sm{padding:7px 12px;font-size:.8rem}
+.badge{display:inline-block;font-size:.7rem;padding:2px 7px;border-radius:6px;font-weight:600}
+.b-exp{background:rgba(231,76,60,.2);color:var(--red)}.b-soon{background:rgba(243,156,18,.2);color:var(--amber)}
+.b-ok{background:rgba(39,174,96,.2);color:var(--green)}.b-loc{background:rgba(108,99,255,.15);color:var(--pri)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;z-index:100;align-items:flex-end}
+.modal.on{display:flex}
+.modal-body{background:var(--card);border-radius:16px 16px 0 0;width:100%;max-width:500px;margin:0 auto;padding:24px;padding-bottom:calc(24px+env(safe-area-inset-bottom))}
+.modal-body h2{font-size:.95rem;margin-bottom:14px}
+.fg{margin-bottom:12px}.fg label{display:block;font-size:.65rem;color:var(--sub);text-transform:uppercase;margin-bottom:4px}
+.mbtns{display:flex;gap:8px;margin-top:16px}.mbtns button{flex:1}
+.empty{text-align:center;padding:50px 20px}.empty .ic{font-size:2.5rem;margin-bottom:8px}.empty p{color:#555;font-size:.85rem}
+.pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch}
+.pill{flex-shrink:0;padding:5px 12px;border-radius:18px;background:var(--card);color:var(--sub);font-size:.75rem;border:1px solid #333;cursor:pointer;white-space:nowrap}
+.pill.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.tab{flex-shrink:0;padding:10px 12px;text-align:center;font-size:.75rem;font-weight:600;color:var(--sub);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--pri);border-bottom-color:var(--pri)}
+.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid #333;padding:10px 20px;border-radius:10px;font-size:.85rem;z-index:200;pointer-events:none;animation:toastIn .3s}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.time-line{position:relative;padding-left:16px}
+.time-line::before{content:'';position:absolute;left:5px;top:0;bottom:0;width:2px;background:#333}
+.tl-item{position:relative;padding:6px 0}.tl-item::before{content:'';position:absolute;left:-16px;top:10px;width:10px;height:10px;border-radius:50%;background:var(--pri);border:2px solid var(--card)}
+.tl-item.used::before{background:var(--green)}
+.tl-item.bought::before{background:var(--amber)}
+.tl-item.expired::before{background:var(--red)}
+.tl-item.created::before{background:#3498db}
+.scan-wrap{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column}
+.scan-wrap.on{display:flex}
+.scan-wrap video{width:100%;flex:1;object-fit:cover}
+.scan-bar{display:flex;gap:10px;padding:16px;background:#1a1a2e;justify-content:center}
+.scan-bar button{background:#333;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:.9rem;cursor:pointer}
+.qr-wrap{text-align:center;padding:16px}.qr-wrap canvas{border:3px solid var(--card);border-radius:8px}
 </style>
 </head>
 <body>
-
-<!-- LOGIN SCREEN -->
-<div id="login" style="position:fixed;inset:0;background:#0f0f1a;display:flex;align-items:center;justify-content:center;z-index:99999">
-<div style="background:#1a1a2e;border-radius:16px;padding:28px 24px;width:90%;max-width:300px;text-align:center">
-<h1 style="font-size:1.3rem;margin-bottom:4px">🍽️ KüchenVorrat</h1>
-<p style="color:#888;font-size:.75rem;margin-bottom:20px">Lagerverwaltung</p>
-<input id="pw" type="text" placeholder="Passwort eingeben" inputmode="text" autocomplete="off" autofocus style="text-align:center">
-<div id="err" style="color:#e74c3c;font-size:.8rem;margin-top:8px;min-height:18px"></div>
-<button id="loginBtn" class="btn btn-pri" style="width:100%;margin-top:10px" onclick="doLogin()">🔓 Einloggen</button>
+<div id="login" class="hidden" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:99999">
+<div class="card" style="max-width:300px;text-align:center">
+<h1 style="margin-bottom:4px">🍽️ KüchenVorrat DB</h1>
+<p style="color:var(--sub);font-size:.7rem;margin-bottom:20px">IndexDB Datenbank</p>
+<input id="pw" type="text" placeholder="Passwort" autocomplete="off" autofocus style="text-align:center">
+<div id="err" style="color:var(--red);font-size:.75rem;margin-top:6px;min-height:16px"></div>
+<button id="loginBtn" class="btn btn-p" style="width:100%;margin-top:8px" onclick="doLogin()">🔓 Einloggen</button>
 </div>
 </div>
-
-<!-- APP -->
-<div id="app" class="hidden" style="height:100vh;height:100dvh;display:flex;flex-direction:column">
-<header style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#16213e;border-bottom:1px solid #2a2a4a;flex-shrink:0">
-<span id="hdrTitle" style="font-size:1.1rem;color:#6c63ff">🍽 Vorrat</span>
-<button class="btn btn-sec btn-sm" onclick="doLogout()" style="background:none;border:1px solid #333;color:#888">🔒</button>
+<div id="app" class="hidden" style="display:flex;flex-direction:column;height:100vh;height:100dvh">
+<header style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#16213e;border-bottom:1px solid #2a2a4a;flex-shrink:0">
+<span id="hdrTitle" style="font-size:1rem;color:var(--pri)">🍽 Vorrat</span>
+<button class="btn btn-sm" onclick="doLogout()" style="background:none;border:1px solid #333;color:var(--sub)">🔒</button>
 </header>
 <nav id="tabsBar" style="display:flex;background:#16213e;border-bottom:1px solid #2a2a4a;flex-shrink:0;overflow-x:auto">
-<button class="tab active" data-tab="pantry" onclick="go('pantry',this)">🍽 Vorrat</button>
+<button class="tab on" data-tab="pantry" onclick="go('pantry',this)">🍽 Vorrat</button>
 <button class="tab" data-tab="locations" onclick="go('locations',this)">🗄 Lager</button>
-<button class="tab" data-tab="recipes" onclick="go('recipes',this)">📖 Kochbuch</button>
+<button class="tab" data-tab="recipes" onclick="go('recipes',this)">📖 Rezepte</button>
 <button class="tab" data-tab="weekplan" onclick="go('weekplan',this)">📅 Woche</button>
 <button class="tab" data-tab="shopping" onclick="go('shopping',this)">🛒 Liste</button>
 <button class="tab" data-tab="settings" onclick="go('settings',this)">⚙️</button>
 </nav>
-<main style="flex:1;overflow-y:auto;padding:12px;padding-bottom:70px" id="mainArea"></main>
-<button class="btn btn-pri" onclick="fabClick()" style="position:fixed;bottom:20px;right:20px;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 4px 15px rgba(108,99,255,.4)">+</button>
+<main id="mainArea" style="flex:1;overflow-y:auto;padding:10px;padding-bottom:70px"></main>
+<button class="btn btn-p" onclick="fabClick()" style="position:fixed;bottom:16px;right:16px;width:48px;height:48px;border-radius:50%;font-size:1.3rem;box-shadow:0 4px 15px rgba(108,99,255,.4)">+</button>
 </div>
 
-<!-- PRODUCT MODAL -->
-<div id="mProd" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;z-index:100">
-<div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:500px;margin:0 auto;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom))">
-<h2 id="mProdTitle" style="font-size:1rem;margin-bottom:16px">Produkt</h2>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Name *</label><input id="fPName" placeholder="z.B. Nudeln"></div>
-<div class="flex" style="margin-bottom:12px"><div><label style="font-size:.65rem;color:#888;text-transform:uppercase">Barcode</label><input id="fPBarcode" placeholder="Optional" inputmode="numeric" style="margin-top:2px"></div><button class="btn btn-pri btn-sm" onclick="doOnlineLookup()" style="margin-top:2px;white-space:nowrap" title="Online suchen">🔍</button></div>
-<div id="lookupInfo" class="hidden" style="background:#16213e;border-radius:10px;padding:12px;margin-bottom:12px"></div>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Kategorie</label><select id="fPCat" style="margin-top:2px"><option>Nudeln</option><option>Reis</option><option>Konserven</option><option>Gewürze</option><option>Öl</option><option>Saucen</option><option>Mehlhelfer</option><option>Süßes</option><option>Getränke</option><option>Kühlregal</option><option>Frischkost</option><option>Obst</option><option>Gemüse</option><option>Fleisch</option><option>Käse</option><option>Tiefkühler</option><option>Bier</option><option>Sonstiges</option></select></div>
-<div class="flex" style="margin-bottom:12px"><div><label style="font-size:.65rem;color:#888;text-transform:uppercase">Menge *</label><input id="fPQty" type="number" placeholder="0" min="0" style="margin-top:2px"></div><div><label style="font-size:.65rem;color:#888;text-transform:uppercase">Einheit</label><select id="fPUnit" style="margin-top:2px"><option>Stk</option><option>g</option><option>kg</option><option>ml</option><option>l</option></select></div></div>
-<div class="flex" style="margin-bottom:12px"><div><label style="font-size:.65rem;color:#888;text-transform:uppercase">Gebinde</label><input id="fPPkg" placeholder="z.B. 500ml" style="margin-top:2px"></div><div><label style="font-size:.65rem;color:#888;text-transform:uppercase">Verfall</label><input id="fPExp" type="date" style="margin-top:2px"></div></div>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Lagerplatz</label><select id="fPLoc" style="margin-top:2px"><option value="">— Ohne —</option></select></div>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Marke</label><input id="fPBrand" placeholder="Optional" style="margin-top:2px"></div>
-<div style="margin-bottom:16px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Bemerkung</label><textarea id="fPNote" style="margin-top:2px"></textarea></div>
-<div class="flex"><button class="btn btn-sec" onclick="closeM('mProd')">Abbrechen</button><button class="btn btn-pri" id="mProdSave" onclick="saveProduct()">Speichern</button></div>
-</div>
-</div>
+<div id="mProd" class="modal"><div class="modal-body">
+<h2 id="mProdTitle">Produkt</h2>
+<div class="fg"><label>Name *</label><input id="fPName" placeholder="z.B. Nudeln"></div>
+<div class="flex"><div class="fg"><label>Barcode</label><input id="fPBarcode" placeholder="Optional" inputmode="numeric"></div><button class="btn btn-sm btn-p" onclick="doOnlineLookup()" style="align-self:flex-end;margin-bottom:12px" title="Online suchen">🔍</button></div>
+<div id="lookupInfo" class="hidden" style="background:#16213e;border-radius:10px;padding:10px;margin-bottom:12px;font-size:.8rem"></div>
+<div class="fg"><label>Kategorie</label><select id="fPCat"></select></div>
+<div class="flex"><div class="fg"><label>Menge *</label><input id="fPQty" type="number" placeholder="0" min="0"></div><div class="fg"><label>Einheit</label><select id="fPUnit"><option>Stk</option><option>g</option><option>kg</option><option>ml</option><option>l</option></select></div></div>
+<div class="flex"><div class="fg"><label>Gebinde</label><input id="fPPkg" placeholder="500ml"></div><div class="fg"><label>Verfall</label><input id="fPExp" type="date"></div></div>
+<div class="fg"><label>Lagerplatz</label><select id="fPLoc"><option value="">— Ohne —</option></select></div>
+<div class="fg"><label>Marke</label><input id="fPBrand" placeholder="Optional"></div>
+<div class="fg"><label>Bemerkung</label><textarea id="fPNote"></textarea></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mProd')">Abbrechen</button><button class="btn btn-p" id="mProdSave" onclick="saveProduct()">Speichern</button></div>
+</div></div>
 
-<!-- LOCATION MODAL -->
-<div id="mLoc" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;z-index:100">
-<div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:500px;margin:0 auto;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom))">
-<h2 id="mLocTitle" style="font-size:1rem;margin-bottom:16px">Lagerplatz</h2>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Name *</label><input id="fLName" placeholder="z.B. Kühlschrank Türfach" style="margin-top:2px"></div>
-<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#888;text-transform:uppercase">Raum *</label><select id="fLCat" style="margin-top:2px"><option>Kühlschrank</option><option>Gefrierschrank</option><option>Küchenschrank</option><option>Speisekammer</option><option>Keller</option><option>Hauswirtschaft</option><option>Sonstiges</option></select></div>
-<div class="flex"><button class="btn btn-sec" onclick="closeM('mLoc')">Abbrechen</button><button class="btn btn-pri" onclick="saveLocation()">Speichern</button></div>
-</div>
-</div>
+<div id="mRoom" class="modal"><div class="modal-body">
+<h2>Raum</h2>
+<div class="fg"><label>Name *</label><input id="fRoomName" placeholder="z.B. Kühlschrank"></div>
+<div class="fg"><label>Typ</label><select id="fRoomType"><option>Kühlschrank</option><option>Gefrierschrank</option><option>Schrank</option><option>Speisekammer</option><option>Keller</option><option>Hauswirtschaft</option><option>Sonstiges</option></select></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mRoom')">Abbrechen</button><button class="btn btn-p" onclick="saveRoom()">Speichern</button></div>
+</div></div>
 
-<!-- QR CODE MODAL -->
-<div id="mQr" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;z-index:100">
-<div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:500px;margin:0 auto;padding:24px;text-align:center">
-<h2 id="qrTitle" style="font-size:1rem;margin-bottom:12px">QR Code</h2>
-<div id="qrContainer"></div>
-<div id="qrInfo" style="color:#888;font-size:.8rem;margin:12px 0 16px"></div>
-<div class="flex"><button class="btn btn-sec" onclick="closeM('mQr')">Schließen</button><button class="btn btn-pri" onclick="printQR()">🖨 Drucken</button></div>
-</div>
-</div>
+<div id="mLoc" class="modal"><div class="modal-body">
+<h2>Lagerplatz</h2>
+<div class="fg"><label>Name *</label><input id="fLocName" placeholder="z.B. Türfach"></div>
+<div class="fg"><label>Raum</label><select id="fLocRoom"></select></div>
+<div class="fg"><label>Regal</label><input id="fLocShelf" placeholder="A, B, C"></div>
+<div class="fg"><label>Fach</label><input id="fLocComp" placeholder="1, 2, 3"></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mLoc')">Abbrechen</button><button class="btn btn-p" onclick="saveLoc()">Speichern</button></div>
+</div></div>
 
-<!-- LOCATION VIEW MODAL -->
-<div id="mLocView" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;z-index:100">
-<div style="background:#1a1a2e;border-radius:16px 16px 0 0;width:100%;max-width:500px;margin:0 auto;padding:24px;padding-bottom:calc(24px + env(safe-area-inset-bottom))">
-<h2 id="locViewTitle" style="font-size:1rem;margin-bottom:16px">Lagerplatz</h2>
-<div id="locViewContent"></div>
-<div class="flex"><button class="btn btn-sec" onclick="closeM('mLocView')">Schließen</button></div>
-</div>
-</div>
+<div id="mQr" class="modal"><div class="modal-body">
+<h2 id="qrTitle">QR Code</h2>
+<div class="qr-wrap"><div id="qrContainer"></div></div>
+<div id="qrInfo" style="color:var(--sub);font-size:.8rem;text-align:center;margin:12px 0"></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mQr')">Schließen</button><button class="btn btn-p" onclick="printQR()">🖨 Drucken</button></div>
+</div></div>
 
-<!-- SCANNER FULLSCREEN -->
-<div id="scannerWrap" class="hidden" style="position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column">
-<div id="scannerReader" style="flex:1"></div>
-<div id="scanResult" class="hidden" style="padding:12px 16px;background:#16213e;text-align:center;font-size:.85rem"></div>
-<div style="display:flex;gap:10px;padding:16px;background:#1a1a2e;justify-content:center">
-<button class="btn btn-sec" onclick="stopScanner()">⏹ Stopp</button>
-</div>
-</div>
+<div id="mLocView" class="modal"><div class="modal-body">
+<h2 id="locViewTitle">Lagerplatz</h2><div id="locViewContent"></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mLocView')">Schließen</button></div>
+</div></div>
 
-<!-- CONFIRM MODAL -->
-<div id="mConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100">
-<div style="background:#1a1a2e;border-radius:16px;padding:24px;width:90%;max-width:300px;text-align:center">
-<h2 style="font-size:1rem;margin-bottom:8px">Bist du sicher?</h2>
-<p id="confirmTxt" style="color:#888;font-size:.85rem;margin-bottom:20px"></p>
-<div class="flex"><button class="btn btn-sec" onclick="closeM('mConfirm')">Abbrechen</button><button class="btn btn-red" id="confirmBtn">Löschen</button></div>
+<div id="mRecipe" class="modal"><div class="modal-body">
+<h2 id="mRecipeTitle">Rezept</h2>
+<div class="fg"><label>Name *</label><input id="fRName" placeholder="z.B. Spaghetti Bolognese"></div>
+<div class="fg"><label>Quelle (URL)</label><input id="fRUrl" placeholder="chefkoch.de/..."></div>
+<div class="flex"><div class="fg"><label>Zeit</label><input id="fRTime" placeholder="30 Min"></div><div class="fg"><label>Schwierigkeit</label><select id="fRDiff"><option>Einfach</option><option>Mittel</option><option>Schwer</option></select></div></div>
+<div class="flex"><div class="fg"><label>Kalorien</label><input id="fRCal" placeholder="550 kcal"></div><div class="fg"><label>Typ</label><select id="fRTy"><option>Mittagessen</option><option>Frühstück</option><option>Abendessen</option><option>Dessert</option><option>Snack</option></select></div></div>
+<div class="fg"><label>Zubereitung</label><textarea id="fRInst" placeholder="Schritt für Schritt..."></textarea></div>
+<div id="recipeIngrSection">
+<h3 style="font-size:.8rem;color:var(--sub);margin:12px 0 6px">Zutaten</h3>
+<div id="recipeIngrList"></div>
+<button class="btn btn-sm btn-s" onclick="addRecipeIngr()" style="margin-top:6px">+ Zutat</button>
 </div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mRecipe')">Abbrechen</button><button class="btn btn-p" onclick="saveRecipe()">Speichern</button></div>
+</div></div>
+
+<div id="mRImport" class="modal"><div class="modal-body">
+<h2>📥 Rezept importieren</h2>
+<div class="fg"><label>URL</label><input id="fRImportUrl" placeholder="https://www.chefkoch.de/rezepte/..."></div>
+<div id="rImportStatus" style="font-size:.8rem;color:var(--sub);margin:10px 0"></div>
+<button class="btn btn-p" onclick="importRecipe()" style="width:100%">🔍 URL laden & parsen</button>
+<div class="mbtns" style="margin-top:12px"><button class="btn btn-s" onclick="closeM('mRImport')">Abbrechen</button><button class="btn btn-p hidden" id="rImportSave" onclick="saveImportedRecipe()">✅ Importieren</button></div>
+</div></div>
+
+<div id="mConfirm" class="modal" style="align-items:center"><div class="card" style="max-width:300px;text-align:center">
+<h2 style="font-size:.9rem">Bist du sicher?</h2>
+<p id="confirmTxt" style="color:var(--sub);font-size:.8rem;margin:10px 0 16px"></p>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mConfirm')">Abbrechen</button><button class="btn btn-r" id="confirmBtn">Löschen</button></div>
+</div></div>
+
+<div id="timelineModal" class="modal"><div class="modal-body">
+<h2 id="tlTitle">Timeline</h2>
+<div class="flex" style="margin-bottom:12px">
+<button class="btn btn-sm btn-p" onclick="addTimelineEntry('used')">🍽 Verbraucht</button>
+<button class="btn btn-sm btn-p" onclick="addTimelineEntry('bought')">🛒 Gekauft</button>
+<button class="btn btn-sm btn-p" onclick="addTimelineEntry('expedited')">⏩ Vorverlegt</button>
+<button class="btn btn-sm btn-r" onclick="addTimelineEntry('expired')">🗑 Abgelaufen</button>
+</div>
+<div id="timelineContent"></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('timelineModal')">Schließen</button></div>
+</div></div>
+
+<div class="scan-wrap" id="scanWrap">
+<div id="scanReader" style="flex:1"></div>
+<div id="scanResult" class="hidden" style="padding:10px 16px;background:#16213e;text-align:center;font-size:.8rem"></div>
+<div class="scan-bar"><button onclick="stopScan()">⏹ Stopp</button></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-var PW='kueche2024';
-var DKEY='kv';
-function ld(){try{return JSON.parse(localStorage.getItem(DKEY))||{products:[],locations:[],shopping:[],appliances:['herd','ofen','mikrowelle','kaffeemaschine'],weekPlan:null}}catch(e){return{products:[],locations:[],shopping:[],appliances:['herd','ofen','mikrowelle','kaffeemaschine'],weekPlan:null}}}
-function sv(){localStorage.setItem(DKEY,JSON.stringify({products:d.products,locations:d.locations,shopping:d.shopping,appliances:d.appliances,weekPlan:d.weekPlan}))}
-var d=ld();
-var tab='pantry',cf='all',rf='all';
-var scanMode='product',pendingLoc=null,qrRunning=false;
+/* ═══ DATABASE: IndexedDB (8 Tabellen) ═══ */
+var DB_NAME='kuechen_vorrat_db',DB_VER=1,DB;
 
+function openDB(){return new Promise(function(res,rej){
+  var req=indexedDB.open(DB_NAME,DB_VER);
+  req.onupgradeneeded=function(e){
+    var db=e.target.result;
+    if(!db.objectStoreNames.contains('categories'))db.createObjectStore('categories',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('rooms'))db.createObjectStore('rooms',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('locations'))db.createObjectStore('locations',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('products'))db.createObjectStore('products',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('recipe_ingredients'))db.createObjectStore('recipe_ingredients',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('shopping'))db.createObjectStore('shopping',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('weekly_meals'))db.createObjectStore('weekly_meals',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('weekly_plans'))db.createObjectStore('weekly_plans',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('product_timeline'))db.createObjectStore('product_timeline',{keyPath:'id'});
+  };
+  req.onsuccess=function(e){DB=e.target.result;res(DB)};
+  req.onerror=function(e){rej(e)};
+});}
+
+function dbPut(store,obj){return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');var s=t.objectStore(store);var r=s.put(obj);r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+function dbGet(store,key){return new Promise(function(res,rej){var t=DB.transaction(store,'readonly');var s=t.objectStore(store);var r=s.get(key);r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+function dbGetAll(store){return new Promise(function(res,rej){var t=DB.transaction(store,'readonly');var s=t.objectStore(store);var r=s.getAll();r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}})}
+function dbDel(store,key){return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');var s=t.objectStore(store);var r=s.delete(key);r.onsuccess=function(){res()};r.onerror=function(){rej(r.error)}})}
+function dbClear(store){return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');var s=t.objectStore(store);var r=s.clear();r.onsuccess=function(){res()};r.onerror=function(){rej(r.error)}})}
+
+/* ═══ STATE ═══ */
+var PW='kueche2024',TAB='pantry',CF='all',RF='all';
+var scanMode='product',pendingLoc=null,importedRecipe=null,curTimelineProd=null;
+var cats=[],rooms=[],locs=[],products=[],recipes=[],shopping=[];
+var _auth=false;
+
+function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,7)}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
-function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,6)}
-function toast(m){var t=document.createElement('div');t.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a2e;border:1px solid #333;padding:10px 20px;border-radius:10px;font-size:.85rem;color:#fff;z-index:200;transition:opacity .3s';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},2000)}
-function closeM(id){document.getElementById(id).classList.add('hidden');var el=document.getElementById(id);if(el)el.style.display=''}
-function openM(id){var el=document.getElementById(id);el.classList.remove('hidden');el.style.display='flex'}
+function toast(m){var t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},2000)}
+function closeM(id){var el=document.getElementById(id);el.classList.remove('on');el.style.display='none'}
+function openM(id){var el=document.getElementById(id);el.classList.add('on');el.style.display='flex'}
 function showCf(txt,cb){document.getElementById('confirmTxt').textContent=txt;document.getElementById('confirmBtn').onclick=function(){closeM('mConfirm');cb()};openM('mConfirm')}
-document.querySelectorAll('[id^="m"]').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)closeM(m.id)})});
+document.querySelectorAll('.modal').forEach(function(m){m.addEventListener('click',function(e){if(e.target===m)closeM(m.id)})});
+function today(){return new Date().toISOString().slice(0,10)}
+function timeStr(ts){if(!ts)return'';var d=new Date(ts);return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}
 
-// ══ LOGIN ══
+/* ═══ LOGIN ═══ */
 function doLogin(){
-  var pw=document.getElementById('pw');
-  var err=document.getElementById('err');
-  var btn=document.getElementById('loginBtn');
-  if(pw.value===PW){
-    err.textContent='';
-    pw.value='';
-    btn.textContent='...';
-    btn.disabled=true;
-    document.getElementById('login').style.display='none';
-    var app=document.getElementById('app');
-    app.style.display='flex';
-    app.classList.remove('hidden');
-    render();
-  } else {
-    err.textContent='Falsches Passwort';
-    pw.value='';
-    pw.focus();
-  }
+  var pw=document.getElementById('pw'),err=document.getElementById('err'),btn=document.getElementById('loginBtn');
+  if(pw.value===PW){err.textContent='';pw.value='';btn.textContent='...';btn.disabled=true;
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');document.getElementById('app').style.display='flex';
+    initApp();
+  } else {err.textContent='Falsches Passwort';pw.value='';pw.focus()}
 }
 document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doLogin()}});
-function doLogout(){location.reload()}
+function doLogout(){_auth=false;location.reload()}
 
-// ══ TABS ══
+/* ═══ INIT ═══ */
+async function initApp(){
+  cats=await dbGetAll('categories');
+  rooms=await dbGetAll('rooms');
+  locs=await dbGetAll('locations');
+  products=await dbGetAll('products');
+  recipes=await dbGetAll('recipes');
+  shopping=await dbGetAll('shopping');
+  if(!cats.length){
+    var defaults=[
+      {id:'c_nudeln',name:'Nudeln',emoji:'🍝',color:'#e74c3c'},
+      {id:'c_reis',name:'Reis',emoji:'🍚',color:'#f39c12'},
+      {id:'c_konserven',name:'Konserven',emoji:'🥫',color:'#e67e22'},
+      {id:'c_gewuerze',name:'Gewürze',emoji:'🧂',color:'#9b59b6'},
+      {id:'c_oel',name:'Öl & Essig',emoji:'🫒',color:'#2ecc71'},
+      {id:'c_saucen',name:'Saucen',emoji:'🍶',color:'#3498db'},
+      {id:'c_meel',name:'Mehl & Helfer',emoji:'🌾',color:'#d4a574'},
+      {id:'c_suesses',name:'Süßes',emoji:'🍫',color:'#e91e63'},
+      {id:'c_getraenke',name:'Getränke',emoji:'🥤',color:'#00bcd4'},
+      {id:'c_kuehl',name:'Kühlregal',emoji:'🧊',color:'#64b5f6'},
+      {id:'c_frisch',name:'Frischkost',emoji:'🥗',color:'#4caf50'},
+      {id:'c_obst',name:'Obst',emoji:'🍎',color:'#f44336'},
+      {id:'c_gemuese',name:'Gemüse',emoji:'🥕',color:'#8bc34a'},
+      {id:'c_fleisch',name:'Fleisch',emoji:'🥩',color:'#c0392b'},
+      {id:'c_kaes',name:'Käse',emoji:'🧀',color:'#ffc107'},
+      {id:'c_tiefkuehl',name:'Tiefkühler',emoji:'❄️',color:'#90caf9'},
+      {id:'c_bier',name:'Bier',emoji:'🍺',color:'#ff9800'},
+      {id:'c_sonstiges',name:'Sonstiges',emoji:'📦',color:'#795548'}
+    ];
+    for(var i=0;i<defaults.length;i++)await dbPut('categories',defaults[i]);
+    cats=defaults;
+  }
+  go('pantry',document.querySelector('.tab'));
+}
+
+/* ═══ TABS ═══ */
 function go(t,btn){
-  tab=t;
-  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active')});
-  if(btn)btn.classList.add('active');
-  document.getElementById('hdrTitle').textContent={pantry:'🍽 Vorrat',locations:'🗄 Lager',recipes:'📖 Kochbuch',weekplan:'📅 Woche',shopping:'🛒 Liste',settings:'⚙️'}[t]||'Vorrat';
+  TAB=t;document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('on',b===btn)});
+  var titles={pantry:'🍽 Vorrat',locations:'🗄 Lager',recipes:'📖 Rezepte',weekplan:'📅 Woche',shopping:'🛒 Liste',settings:'⚙️'};
+  document.getElementById('hdrTitle').textContent=titles[t]||'Vorrat';
   render();
 }
-
-function catEmoji(c){var m={Nudeln:'🍝',Reis:'🍚',Konserven:'🥫',Gewürze:'🧂',Öl:'🫒',Saucen:'🍶',Mehlhelfer:'🌾',Süßes:'🍫',Getränke:'🥤',Kühlregal:'🧊',Frischkost:'🥗',Obst:'🍎',Gemüse:'🥕',Fleisch:'🥩',Käse:'🧀',Tiefkühler:'❄️',Bier:'🍺',Sonstiges:'📦'};return m[c]||'📦'}
-
-function expSt(exp){
-  if(!exp)return null;
-  var now=Date.now(),d=Math.ceil((new Date(exp).getTime()-now)/864e5);
-  if(d<0)return{l:(Math.abs(d)+'x abgelaufen'),c:'color:#e74c3c'};
-  if(d<=3)return{l:(d<=0?'Heute!':'In '+d+'d'),c:'color:#f39c12'};
-  return{l:exp,c:'color:#27ae60'};
-}
-
 function fabClick(){
-  if(tab==='pantry'||tab==='locations')openAdd();
-  else if(tab==='shopping')document.getElementById('shopInput').focus();
+  if(TAB==='pantry'||TAB==='locations')openAddProd();
+  else if(TAB==='recipes'){openM('mRImport');document.getElementById('fRImportUrl').value='';document.getElementById('rImportStatus').textContent='';document.getElementById('rImportSave').classList.add('hidden')}
+  else if(TAB==='shopping')document.getElementById('shopInput').focus();
 }
 
-// ══ PANTRY ══
-function render(){
+/* ═══ HELPERS ═══ */
+function catEmoji(c){var found=cats.find(function(x){return x.name===c});return found?found.emoji:'📦'}
+function catColor(c){var found=cats.find(function(x){return x.name===c});return found?found.color:'#888'}
+function expSt(exp){
+  if(!exp)return null;var now=Date.now(),d=Math.ceil((new Date(exp).getTime()-now)/864e5);
+  if(d<0)return{l:(Math.abs(d)+'x abgelaufen'),c:'b-exp'};
+  if(d<=0)return{l:'Heute!',c:'b-exp'};
+  if(d<=3)return{l:'In '+d+'d',c:'b-soon'};
+  return{l:exp,c:'b-ok'};
+}
+function genCode(){
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code='';
+  for(var i=0;i<6;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+  return locs.find(function(l){return l.code===code})?genCode():code;
+}
+
+/* ═══ PANTRY ═══ */
+async function render(){
+  products=await dbGetAll('products');locs=await dbGetAll('locations');
   var main=document.getElementById('mainArea');
-  if(tab==='pantry')renderPantry(main);
-  else if(tab==='locations')renderLocs(main);
-  else if(tab==='recipes')renderRec(main);
-  else if(tab==='weekplan')renderWeek(main);
-  else if(tab==='shopping')renderShop(main);
+  if(TAB==='pantry')renderPantry(main);
+  else if(TAB==='locations')renderLocs(main);
+  else if(TAB==='recipes')renderRecs(main);
+  else if(TAB==='weekplan')renderWeek(main);
+  else if(TAB==='shopping')renderShop(main);
   else renderSet(main);
 }
 
 function renderPantry(main){
-  var items=d.products.slice().sort(function(a,b){return(a.exp?new Date(a.exp):new Date('2999'))-(b.exp?new Date(b.exp):new Date('2999'))});
-  var cats=[...new Set(items.map(function(p){return p.cat}))].sort();
+  var items=products.slice().sort(function(a,b){return(a.exp?new Date(a.exp):new Date('2999'))-(b.exp?new Date(b.exp):new Date('2999'))});
   var search=document.getElementById('searchInput').value.toLowerCase();
-  if(search)items=items.filter(function(p){return(p.name||'').toLowerCase().indexOf(search)>=0||(p.cat||'').toLowerCase().indexOf(search)>=0});
-  if(cf!=='all')items=items.filter(function(p){return p.cat===cf});
-  var total=d.products.length,exp=0,soon=0;
-  items.forEach(function(p){if(p.exp){var d2=Math.ceil((new Date(p.exp).getTime()-Date.now())/864e5);if(d2<0)exp++;else if(d2<=7)soon++}});
-
-  var h='<div style="display:flex;gap:8px;margin-bottom:12px"><div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:#6c63ff">'+total+'</div><div style="font-size:.65rem;color:#888">Produkte</div></div><div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:#f39c12">'+soon+'</div><div style="font-size:.65rem;color:#888">Bald abgelaufen</div></div><div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:#e74c3c">'+exp+'</div><div style="font-size:.65rem;color:#888">Abgelaufen</div></div></div>';
-  h+='<div class="flex" style="margin-bottom:12px"><input type="text" id="searchInput" placeholder="Suchen..." oninput="render()" style="margin-top:0"><button class="btn btn-sec btn-sm" onclick="scanProd()" style="margin-top:0;white-space:nowrap" title="Barcode">📷</button><button class="btn btn-sec btn-sm" onclick="scanLoc()" style="margin-top:0;white-space:nowrap" title="Lager-Code">🏷</button></div>';
-
-  var pills='<div class="flex" style="margin-bottom:12px;overflow-x:auto;padding-bottom:8px">';
-  pills+='<div onclick="filterCat(\'all\',this)" class="pill '+(cf==='all'?'on':'')+'" style="flex-shrink:0;padding:6px 14px;border-radius:20px;background:'+((cf==='all')?'#6c63ff':'#16213e')+';color:'+((cf==='all')?'#fff':'#888')+';font-size:.78rem;border:1px solid #333;cursor:pointer;white-space:nowrap">Alle ('+total+')</div>';
+  if(search)items=items.filter(function(p){return(p.name||'').toLowerCase().indexOf(search)>=0||(p.barcode||'').indexOf(search)>=0||(p.cat||'').toLowerCase().indexOf(search)>=0});
+  if(CF!=='all')items=items.filter(function(p){return p.cat===CF});
+  var total=products.length,exp=0,soon=0;
+  items.forEach(function(p){if(p.exp){var d=Math.ceil((new Date(p.exp).getTime()-Date.now())/864e5);if(d<0)exp++;else if(d<=7)soon++}});
+  var h='<div style="display:flex;gap:8px;margin-bottom:12px">';
+  h+='<div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--pri)">'+total+'</div><div style="font-size:.6rem;color:var(--sub)">Produkte</div></div>';
+  h+='<div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--amber)">'+soon+'</div><div style="font-size:.6rem;color:var(--sub)">Bald abgelaufen</div></div>';
+  h+='<div class="card" style="flex:1;text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--red)">'+exp+'</div><div style="font-size:.6rem;color:var(--sub)">Abgelaufen</div></div></div>';
+  h+='<div class="flex" style="margin-bottom:12px"><input type="text" id="searchInput" placeholder="Suchen..." oninput="render()" style="flex:1;margin-top:0">';
+  h+='<button class="btn btn-sm btn-s" onclick="scanProd()" style="margin-top:0;white-space:nowrap" title="Barcode">📷</button>';
+  h+='<button class="btn btn-sm btn-s" onclick="scanLocCode()" style="margin-top:0;white-space:nowrap" title="Lager-Code">🏷</button></div>';
+  var pills='<div class="pills">';
+  pills+='<div class="pill '+(CF==='all'?'on':'')+'" onclick="filterCat(\'all\',this)">Alle ('+total+')</div>';
   cats.forEach(function(c){
-    var cnt=d.products.filter(function(p){return p.cat===c}).length;
-    pills+='<div onclick="filterCat(\''+c+'\',this)" class="pill '+((cf===c)?'on':'')+'" style="flex-shrink:0;padding:6px 14px;border-radius:20px;background:'+((cf===c)?'#6c63ff':'#16213e')+';color:'+((cf===c)?'#fff':'#888')+';font-size:.78rem;border:1px solid #333;cursor:pointer;white-space:nowrap">'+esc(c)+' ('+cnt+')</div>';
+    var cnt=products.filter(function(p){return p.cat===c.name}).length;
+    pills+='<div class="pill '+(CF===c.name?'on':'')+'" onclick="filterCat(\''+c.name+'\',this)" style="border-left:3px solid '+c.color+'">'+c.emoji+' '+esc(c.name)+' ('+cnt+')</div>';
   });
-  pills+='</div>';
-  h+=pills;
-
-  if(!items.length){h+='<div style="text-align:center;padding:40px 20px"><div style="font-size:2.5rem;margin-bottom:8px">🍽️</div><p style="color:#555;font-size:.85rem">Noch keine Produkte.<br>Tippe + zum Hinzufügen.</p></div>'}
-  else{
-    h+=items.map(function(p){
-      var loc=d.locations.find(function(l){return l.id===p.locId});
-      var ex=expSt(p.exp);
-      var exHtml=ex?'<span style="font-size:.7rem;color:'+ex.c+'">'+ex.l+'</span>':'';
-      var locHtml=loc?'<span style="font-size:.7rem;color:#6c63ff">📍 '+esc(loc.name)+'</span>':'';
-      return '<div class="card" onclick="editProd(\''+p.id+'\')"><div class="flex" style="align-items:flex-start"><div style="font-size:1.4rem;flex-shrink:0;margin-right:10px">'+catEmoji(p.cat)+'</div><div style="flex:1"><div style="font-weight:600">'+esc(p.name)+'</div><div style="font-size:.75rem;color:#888">'+p.qty+' '+esc(p.unit)+(p.pkg?' · '+esc(p.pkg):'')+(locHtml?'<br>'+locHtml:'')+'</div><div style="margin-top:3px">'+exHtml+'</div></div><div class="flex" style="gap:4px"><button onclick="event.stopPropagation();editProd(\''+p.id+'\')" style="background:none;border:1px solid #333;color:#888;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer">✏️</button><button onclick="event.stopPropagation();delProd(\''+p.id+'\')" style="background:none;border:1px solid #333;color:#e74c3c;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer">🗑</button></div></div></div>';
-    }).join('');
-  }
+  pills+='</div>';h+=pills;
+  if(!items.length)h+='<div class="empty"><div class="ic">🍽️</div><p>Noch keine Produkte.<br>Tippe + zum Hinzufügen.</p></div>';
+  else h+=items.map(function(p){
+    var loc=locs.find(function(l){return l.id===p.locId});
+    var ex=expSt(p.exp),exHtml=ex?'<span class="badge '+ex.c+'">'+ex.l+'</span>':'';
+    var locHtml=loc?'<span class="badge b-loc">📍 '+esc(loc.name)+'</span>':'';
+    return '<div class="card" onclick="editProd(\''+p.id+'\')"><div class="flex" style="align-items:flex-start"><div style="font-size:1.3rem;flex-shrink:0;margin-right:8px">'+catEmoji(p.cat)+'</div><div style="flex:1"><div style="font-weight:600">'+esc(p.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+p.qty+' '+esc(p.unit)+(p.pkg?' · '+esc(p.pkg):'')+(locHtml?'<br>'+locHtml:'')+'</div><div style="margin-top:2px">'+exHtml+'</div></div><div class="flex" style="gap:3px"><button onclick="event.stopPropagation();openTimeline(\''+p.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Timeline">📈</button><button onclick="event.stopPropagation();editProd(\''+p.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem">✏️</button><button onclick="event.stopPropagation();delProd(\''+p.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem;color:var(--red)">🗑</button></div></div></div>';
+  }).join('');
   main.innerHTML=h;
 }
+function filterCat(f,el){CF=f;document.querySelectorAll('.pills .pill').forEach(function(p){p.classList.remove('on')});el.classList.add('on');render()}
 
-function filterCat(f,el){cf=f;document.querySelectorAll('.flex > div[onclick*=filterCat]').forEach(function(d){d.style.background='#16213e';d.style.color='#888'});el.style.background='#6c63ff';el.style.color='#fff';render()}
-
-// ══ PRODUCT CRUD ══
-function openAdd(editId,prefLoc){
-  document.getElementById('mProdTitle').textContent=editId?'Produkt bearbeiten':'Produkt hinzufügen';
+/* ═══ PRODUCT CRUD ═══ */
+function openAddProd(){
+  document.getElementById('mProdTitle').textContent='Produkt hinzufügen';
   document.getElementById('lookupInfo').classList.add('hidden');
-  var locs=d.locations.sort(function(a,b){return a.name.localeCompare(b.name)});
+  var opts='<option value="">— Ohne —</option>';
+  locs.sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(l){opts+='<option value="'+l.id+'">'+esc(l.name)+'</option>'});
+  document.getElementById('fPLoc').innerHTML=opts;
+  ['fPName','fPBarcode','fPQty','fPPkg','fPBrand','fPNote'].forEach(function(id){document.getElementById(id).value=''});
+  document.getElementById('fPExp').value='';
+  var sel=document.getElementById('fPCat');sel.innerHTML='';
+  cats.forEach(function(c){sel.innerHTML+='<option>'+c.emoji+' '+esc(c.name)+'</option>'});sel.selectedIndex=0;
+  document.getElementById('mProdSave').onclick=function(){saveProduct(null)};
+  openM('mProd');setTimeout(function(){document.getElementById('fPName').focus()},150);
+}
+function editProd(id){
+  var p=products.find(function(x){return x.id===id});if(!p)return;
+  document.getElementById('mProdTitle').textContent='Produkt bearbeiten';
+  document.getElementById('lookupInfo').classList.add('hidden');
   var opts='<option value="">— Ohne —</option>';
   locs.forEach(function(l){opts+='<option value="'+l.id+'">'+esc(l.name)+'</option>'});
   document.getElementById('fPLoc').innerHTML=opts;
-  if(editId){
-    var p=d.products.find(function(x){return x.id===editId});if(!p)return;
-    document.getElementById('fPName').value=p.name;document.getElementById('fPBarcode').value=p.barcode||'';
-    document.getElementById('fPCat').value=p.cat||'Sonstiges';document.getElementById('fPQty').value=p.qty;
-    document.getElementById('fPUnit').value=p.unit||'g';document.getElementById('fPPkg').value=p.pkg||'';
-    document.getElementById('fPExp').value=p.exp||'';document.getElementById('fPLoc').value=p.locId||'';
-    document.getElementById('fPBrand').value=p.brand||'';document.getElementById('fPNote').value=p.note||'';
-    document.getElementById('mProdSave').onclick=function(){saveProd(editId)};
-  } else {
-    ['fPName','fPBarcode','fPQty','fPPkg','fPBrand','fPNote'].forEach(function(id){document.getElementById(id).value=''});
-    document.getElementById('fPExp').value='';document.getElementById('fPLoc').selectedIndex=0;
-    document.getElementById('mProdSave').onclick=function(){saveProd(null)};
-  }
-  if(prefLoc)document.getElementById('fPLoc').value=prefLoc;
-  openM('mProd');setTimeout(function(){document.getElementById('fPName').focus()},150);
+  document.getElementById('fPName').value=p.name;document.getElementById('fPBarcode').value=p.barcode||'';
+  var sel=document.getElementById('fPCat');sel.innerHTML='';
+  cats.forEach(function(c){sel.innerHTML+='<option'+(c.name===p.cat?' selected':'')+'>'+c.emoji+' '+esc(c.name)+'</option>'});
+  document.getElementById('fPQty').value=p.qty;document.getElementById('fPUnit').value=p.unit||'g';
+  document.getElementById('fPPkg').value=p.pkg||'';document.getElementById('fPExp').value=p.exp||'';
+  document.getElementById('fPLoc').value=p.locId||'';document.getElementById('fPBrand').value=p.brand||'';
+  document.getElementById('fPNote').value=p.note||'';
+  document.getElementById('mProdSave').onclick=function(){saveProduct(id)};
+  openM('mProd');
 }
-function editProd(id){openAdd(id)}
-function saveProd(editId){
+async function saveProduct(editId){
   var nm=document.getElementById('fPName').value.trim();if(!nm){toast('Name fehlt!');return}
   var obj={name:nm,barcode:document.getElementById('fPBarcode').value.trim(),cat:document.getElementById('fPCat').value,
     qty:parseInt(document.getElementById('fPQty').value)||0,unit:document.getElementById('fPUnit').value,
     pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,
     locId:document.getElementById('fPLoc').value||null,brand:document.getElementById('fPBrand').value.trim(),
     note:document.getElementById('fPNote').value.trim()};
-  if(editId){var p=d.products.find(function(x){return x.id===editId});if(!p)return;Object.assign(p,obj);toast('✅ Aktualisiert')}
-  else{d.products.push({id:uid(),...obj});toast('✅ Gespeichert')}
-  sv();closeM('mProd');render();
+  if(editId){var p=products.find(function(x){return x.id===editId});if(!p)return;Object.assign(p,obj);await dbPut('products',p);toast('✅ Aktualisiert')}
+  else{obj.id=uid();obj.created=today();products.push(obj);await dbPut('products',obj);toast('✅ Gespeichert')}
+  closeM('mProd');render();
 }
-function delProd(id){
-  var p=d.products.find(function(x){return x.id===id});if(!p)return;
-  showCf('"'+p.name+'" löschen?',function(){d.products=d.products.filter(function(x){return x.id!==id});sv();render();toast('🗍 Gelöscht')});
-}
-
-// ══ ONLINE LOOKUP ══
-function doOnlineLookup(){
-  var code=document.getElementById('fPBarcode').value.trim();
-  if(!code){toast('Barcode eingeben!');return}
-  var btn=document.getElementById('mProd').querySelector('[onclick*=doOnline]');
-  btn.textContent='⏳';btn.disabled=true;
-  lookup(code).then(function(r){
-    if(r){
-      document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML='<div style="font-weight:600">✅ '+esc(r.name)+(r.brand?' · '+esc(r.brand):'')+'</div><div style="color:#888;font-size:.75rem">'+(r.pkg?'📦 '+esc(r.pkg)+' · ':r.cat?'📁 '+esc(r.cat)+':':'')+(r.abv?'🍺 '+r.abv:'')+(r.ibu?'🌿 IBU:'+r.ibu:'')+(r.origin?'🌍 '+r.origin:r.note||'')+'</div>';
-      if(!document.getElementById('fPName').value)document.getElementById('fPName').value=r.name;
-      if(!document.getElementById('fPBrand').value&&r.brand)document.getElementById('fPBrand').value=r.brand;
-      if(!document.getElementById('fPPkg').value&&r.pkg)document.getElementById('fPPkg').value=r.pkg;
-      if(!document.getElementById('fPNote').value&&r.note)document.getElementById('fPNote').value=r.note;
-      if(r.origin)document.getElementById('fPNote').value=(document.getElementById('fPNote').value?document.getElementById('fPNote').value+'\n':'')+'Herkunft: '+r.origin;
-      toast('✅ Produkt gefunden!');
-    } else {
-      document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML='<div style="color:#e74c3c">❌ Nicht gefunden</div>';
-      toast('Nicht in Online-DBs');
-    }
-  }).catch(function(e){toast('❌ '+e.message)});
-  btn.textContent='🔍';btn.disabled=false;
-}
-
-function lookup(code){
-  return fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)}).then(function(r){return r.json()}).then(function(j){
-    if(j.status===1&&j.product){
-      var p=j.product;
-      var cat=mapCat(p.categories_tags||[]);
-      var pkg=extPkg(p.quantity||'');
-      return{name:p.product_name||p.product_name_de||'',brand:p.brands||'',cat:cat,pkg:pkg,unit:extUnit(p.quantity||''),origin:p.countries||'',barcode:code,note:'OpenFoodFacts'};
-    }
-    return null;
-  }).catch(function(){
-    return fetch('https://api.openbrewerydb.org/v1/beers?barcode='+code,{signal:AbortSignal.timeout(5000)}).then(function(r){return r.json()}).then(function(j){
-      if(j&&j.length){
-        var b=j[0];
-        return{name:b.name||'Unbekannt',brand:b.brand_name||b.brewery_name||'',cat:'Bier',pkg:b.volume_label||'',unit:extUnit(b.volume_label||''),abv:b.abv?b.abv.toFixed(1)+'%':'',ibu:b.ibu||'',barcode:code,note:'OpenBreweryDB'};
-      }
-      return null;
-    }).catch(function(){return null});
+async function delProd(id){
+  var p=products.find(function(x){return x.id===id});if(!p)return;
+  showCf('"'+p.name+'" löschen?\nTimeline-Einträge gehen auch verloren.',function(){
+    products=products.filter(function(x){return x.id!==id});dbClear('product_timeline').then(function(){render()});toast('🗍');
   });
 }
-function mapCat(tags){var t=(tags||[]).join(',').toLowerCase();if(/noodle|pasta/.test(t))return'Nudeln';if(/rice/.test(t))return'Reis';if(/canned/.test(t))return'Konserven';if(/oil/.test(t))return'Öl';if(/sauce/.test(t))return'Saucen';if(/flour|grain/.test(t))return'Mehlhelfer';if(/sweet|chocolate/.test(t))return'Süßes';if(/drink|juice/.test(t))return'Getränke';if(/dairy/.test(t))return'Kühlregal';if(/fruit/.test(t))return'Obst';if(/vegetable/.test(t))return'Gemüse';if(/meat/.test(t))return'Fleisch';if(/cheese/.test(t))return'Käse';return'Sonstiges'}
+
+/* ═══ ONLINE LOOKUP ═══ */
+async function doOnlineLookup(){
+  var code=document.getElementById('fPBarcode').value.trim();
+  if(!code){toast('Barcode eingeben!');return}
+  var btn=document.querySelector('#mProd [onclick*=doOnline]');btn.textContent='⏳';btn.disabled=true;
+  try{
+    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)});
+    var j=await r.json();
+    if(j.status===1&&j.product){
+      var p=j.product,cat=mapCat(p.categories_tags||[]),pkg=extPkg(p.quantity||'');
+      document.getElementById('lookupInfo').classList.remove('hidden');
+      document.getElementById('lookupInfo').innerHTML='✅ <b>'+esc(p.product_name||'Unbekannt')+'</b>'+
+        (p.brands?' · '+esc(p.brands):'')+(pkg?' · '+esc(pkg):'')+(p.countries?'<br>🌍 '+esc(p.countries):'');
+      if(!document.getElementById('fPName').value)document.getElementById('fPName').value=p.product_name||'';
+      if(!document.getElementById('fPBrand').value&&p.brands)document.getElementById('fPBrand').value=p.brands;
+      if(!document.getElementById('fPPkg').value&&pkg)document.getElementById('fPPkg').value=pkg;
+      var sel=document.getElementById('fPCat');
+      for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
+      toast('✅ Produkt gefunden!');
+    } else {document.getElementById('lookupInfo').classList.remove('hidden');document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Nicht gefunden</span>';toast('Nicht in DB')}
+  }catch(e){toast('❌ '+e.message)}
+  btn.textContent='🔍';btn.disabled=false;
+}
+function mapCat(tags){var t=(tags||[]).join(',').toLowerCase();if(/noodle|pasta/.test(t))return'Nudeln';if(/rice/.test(t))return'Reis';if(/canned/.test(t))return'Konserven';if(/oil/.test(t))return'Öl';if(/sauce/.test(t))return'Saucen';if(/flour|grain/.test(t))return'Mehl & Helfer';if(/sweet|chocolate/.test(t))return'Süßes';if(/drink|juice/.test(t))return'Getränke';if(/dairy/.test(t))return'Kühlregal';if(/fruit/.test(t))return'Obst';if(/vegetable/.test(t))return'Gemüse';if(/meat/.test(t))return'Fleisch';if(/cheese/.test(t))return'Käse';return'Sonstiges'}
 function extPkg(q){if(!q)return'';var m=q.match(/^(\d+)[\.,\s]*(g|kg|ml|l|cl)?$/i);return m?(m[1].replace(',','.')+(m[2]?m[2].toLowerCase():'')):q}
-function extUnit(q){if(!q)return'';if(q.indexOf('l')>=0&&q.indexOf('ml')<0)return'l';if(q.indexOf('ml')>=0)return'ml';if(q.indexOf('kg')>=0)return'kg';if(q.indexOf('g')>=0)return'g';return''}
 
-// ══ SCANNER ══
+/* ═══ TIMELINE ═══ */
+async function openTimeline(prodId){
+  curTimelineProd=prodId;var p=products.find(function(x){return x.id===prodId});if(!p)return;
+  document.getElementById('tlTitle').textContent='📈 '+p.name;
+  var tl=await dbGetAll('product_timeline');
+  var items=tl.filter(function(t){return t.prodId===prodId}).sort(function(a,b){return new Date(b.ts)-new Date(a.ts)});
+  var h=items.length?'<div class="time-line">':'';
+  if(items.length)h+=items.map(function(t){
+    var typeLabels={used:'🍽 Verbraucht',bought:'🛒 Gekauft',expedited:'⏩ Vorverlegt',expired:'🗑 Abgelaufen',created:'📦 Erstellt'};
+    h+='<div class="tl-item '+t.type+'"><div class="tl-date">'+timeStr(t.ts)+'</div><div class="tl-text">'+typeLabels[t.type]||t.type;
+    if(t.amount)h+=' · '+t.amount;
+    if(t.note)h+=' — '+esc(t.note);
+    h+='</div></div>';
+  }).join('')+'</div>';
+  else h='<div class="empty" style="padding:20px"><p>Noch keine Einträge.</p></div>';
+  document.getElementById('timelineContent').innerHTML=h;
+  openM('timelineModal');
+}
+async function addTimelineEntry(type){
+  var amount=prompt('Menge (optional):','');
+  var note=prompt('Bemerkung (optional):','');
+  await dbPut('product_timeline',{id:uid(),prodId:curTimelineProd,type:type,amount:amount?parseInt(amount):null,note:note||'',ts:new Date().toISOString()});
+  openTimeline(curTimelineProd);toast('✅ '+type);
+}
+
+/* ═══ LOCATIONS ═══ */
+async function renderLocs(main){
+  rooms=await dbGetAll('rooms');locs=await dbGetAll('locations');products=await dbGetAll('products');
+  if(!locs.length){main.innerHTML='<div class="empty"><div class="ic">🗄️</div><p>Keine Lagerplätze.<br>Tippe + zum Hinzufügen.</p></div>';return}
+  var groups={};locs.forEach(function(l){var r=rooms.find(function(rom){return rom.id===l.roomId})||{name:'Sonstiges'};if(!groups[r.name])groups[r.name]=[];groups[r.name].push(l)});
+  var h='<div class="flex" style="margin-bottom:12px"><input type="text" placeholder="Suchen..." oninput="render()" style="flex:1;margin-top:0"><button onclick="scanLocCode()" class="btn btn-sm btn-s" style="margin-top:0">🏷</button></div>';
+  Object.keys(groups).sort().forEach(function(room){
+    h+='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:12px 0 8px">📁 '+esc(room)+'</div>';
+    groups[room].forEach(function(l){
+      var cnt=products.filter(function(p){return p.locId===l.id}).length;
+      h+='<div class="card"><div class="flex" style="align-items:flex-start"><div style="flex:1"><div style="font-weight:600">'+esc(l.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+cnt+' Produkt'+(cnt!==1?'e':'')+' · Code: <span class="badge b-loc">'+esc(l.code)+'</span>'+(l.shelf?' · Regal '+esc(l.shelf):'')+(l.compartment?' · Fach '+esc(l.compartment):'')+'</div></div><div class="flex" style="gap:3px"><button onclick="showQR(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="QR">📱</button><button onclick="viewLocById(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Inhalte">👁</button><button onclick="assignLoc(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Zuweisen">➕</button><button onclick="delLoc(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem;color:var(--red)">🗑</button></div></div></div>';
+    });
+  });main.innerHTML=h;
+}
+function openAddRoom(){document.getElementById('fRoomName').value='';openM('mRoom')}
+async function saveRoom(){
+  var nm=document.getElementById('fRoomName').value.trim();if(!nm){toast('Name nötig!');return}
+  var obj={id:uid(),name:nm,type:document.getElementById('fRoomType').value,created:today()};
+  rooms.push(obj);await dbPut('rooms',obj);closeM('mRoom');render();toast('✅ '+nm)}
+async function delRoom(id){
+  var locsInRoom=locs.filter(function(l){return l.roomId===id});
+  showCf('Raum mit '+locsInRoom.length+' Lagerplätzen löschen?',function(){
+    locs=locs.filter(function(l){return l.roomId!==id});dbDel('rooms',id).then(function(){render()});toast('🗍');
+  });
+}
+function openAddLoc(){
+  document.getElementById('fLocName').value='';document.getElementById('fLocShelf').value='';document.getElementById('fLocComp').value='';
+  var opts='<option value="">— Kein Raum —</option>';
+  rooms.sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(r){opts+='<option value="'+r.id+'">'+esc(r.name)+'</option>'});
+  document.getElementById('fLocRoom').innerHTML=opts;openM('mLoc');
+}
+async function saveLoc(){
+  var nm=document.getElementById('fLocName').value.trim();if(!nm){toast('Name nötig!');return}
+  var obj={id:uid(),name:nm,roomId:document.getElementById('fLocRoom').value,shelf:document.getElementById('fLocShelf').value.trim(),
+    compartment:document.getElementById('fLocComp').value.trim(),code:genCode(),created:today()};
+  locs.push(obj);await dbPut('locations',obj);closeM('mLoc');render();toast('✅ '+nm);
+  setTimeout(function(){showQR(obj.id)},200);
+}
+async function delLoc(id){
+  var loc=locs.find(function(l){return l.id===id});if(!loc)return;
+  var cnt=products.filter(function(p){return p.locId===id}).length;
+  showCf('"'+loc.name+'" löschen?\n'+(cnt?cnt+' Produkt'+(cnt>1?'e':'')+' entfernt':''),function(){
+    if(cnt)products=products.filter(function(p){return p.locId!==id});
+    dbDel('locations',id).then(function(){render()});toast('🗍');
+  });
+}
+function showQR(id){
+  var loc=locs.find(function(l){return l.id===id});if(!loc)return;
+  document.getElementById('qrTitle').textContent='📱 '+loc.name;
+  document.getElementById('qrInfo').textContent='Code: '+loc.code+' | '+loc.shelf?(loc.shelf+' · ':'')+(loc.compartment?loc.compartment+' Fach':'');
+  var c=document.getElementById('qrContainer');c.innerHTML='';
+  if(typeof QRCode!=='undefined'){var cv=document.createElement('canvas');QRCode.toCanvas(cv,loc.code,{width:180,margin:1},function(){cv.style.width='180px';cv.style.height='180px';c.appendChild(cv)})}
+  openM('mQr');
+}
+function printQR(){
+  var c=document.getElementById('qrContainer').innerHTML,t=document.getElementById('qrTitle').textContent;
+  var w=window.open('','','width=300,height=400');if(!w){toast('Blockiert');return}
+  w.document.write('<!DOCTYPE html><html><head><title>'+esc(t)+'</title><style>body{font-family:sans-serif;text-align:center;padding:20px}@media print{body{margin:0}}</style></head><body><h1>'+esc(t)+'</h1>'+c+'</body></html>');
+  w.document.close();setTimeout(function(){w.print()},500);
+}
+function viewLocById(id){viewLoc(locs.find(function(l){return l.id===id}))}
+function viewLoc(loc){
+  if(!loc)return;document.getElementById('locViewTitle').textContent='📍 '+loc.name;
+  var prods=products.filter(function(p){return p.locId===loc.id});
+  if(!prods.length)document.getElementById('locViewContent').innerHTML='<div style="text-align:center;padding:20px;color:var(--sub)">Keine Produkte.</div>';
+  else document.getElementById('locViewContent').innerHTML=prods.map(function(p){
+    var ex=expSt(p.exp),exHtml=ex?'<span class="badge '+ex.c+'" style="font-size:.65rem">'+ex.l+'</span>':'';
+    return '<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">'+esc(p.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+p.qty+' '+esc(p.unit)+(p.pkg?' · '+esc(p.pkg):'')+exHtml+'</div></div><div class="flex" style="gap:3px"><button onclick="closeM(\'mLocView\');editProd(\''+p.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem">✏️</button><button onclick="closeM(\'mLocView\');delProd(\''+p.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem;color:var(--red)">🗑</button></div></div>';
+  }).join('');openM('mLocView');
+}
+function assignLoc(id){
+  var loc=locs.find(function(l){return l.id===id});if(!loc)return;
+  toast('🏷 Barcode scannen für '+loc.name);pendingLoc=id;
+  TAB='pantry';go('pantry',document.querySelector('[data-tab="pantry"]'));scanProd();
+}
+
+/* ═══ SCANNER ═══ */
 var html5qr=null,scannerOn=false;
-
-function scanProd(){
-  scanMode='product';pendingLoc=null;
-  document.getElementById('scannerWrap').classList.remove('hidden');
-  document.getElementById('scanResult').classList.add('hidden');
-  scannerOn=true;
-  try{html5qr=new Html5Qrcode('scannerReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},onScan,function(){})}
-  catch(e){toast('❌ Kamera nicht verfügbar');stopScan()}
+function scanProd(){scanMode='product';pendingLoc=null;document.getElementById('scanWrap').classList.add('on');
+  document.getElementById('scanResult').classList.add('hidden');scannerOn=true;
+  try{html5qr=new Html5Qrcode('scanReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:250},onScan,function(){})}
+  catch(e){toast('❌ Kamera');stopScan()}
 }
-
-function scanLoc(){
-  scanMode='location';pendingLoc=null;
-  document.getElementById('scannerWrap').classList.remove('hidden');
-  var sr=document.getElementById('scanResult');
-  sr.classList.remove('hidden');sr.textContent='🏷 Lagerplatz scannen...';
-  scannerOn=true;
-  try{html5qr=new Html5Qrcode('scannerReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},onScan,function(){})}
-  catch(e){toast('❌ Kamera nicht verfügbar');stopScan()}
+function scanLocCode(){scanMode='location';pendingLoc=null;document.getElementById('scanWrap').classList.add('on');
+  var sr=document.getElementById('scanResult');sr.classList.remove('hidden');sr.textContent='🏷 Lagerplatz scannen...';scannerOn=true;
+  try{html5qr=new Html5Qrcode('scanReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:250},onScan,function(){})}
+  catch(e){toast('❌ Kamera');stopScan()}
 }
-
 function onScan(text){
   scannerOn=false;stopScan();
   if(pendingLoc){assignToLoc(text);return}
   if(scanMode==='location'){
-    var loc=d.locations.find(function(l){return l.code===text.toUpperCase()});
-    if(loc){
-      var sr=document.getElementById('scanResult');sr.textContent='📍 '+loc.name;
-      viewLoc(loc);
-    } else {
-      var sr=document.getElementById('scanResult');sr.textContent='❌ Kein Code: '+text;
-      toast('Lagerplatz nicht gefunden');
-    }
+    var loc=locs.find(function(l){return l.code===text.toUpperCase()});
+    if(loc){var sr=document.getElementById('scanResult');sr.textContent='📍 '+loc.name;viewLoc(loc)}
+    else{var sr=document.getElementById('scanResult');sr.textContent='❌ Kein Code: '+text;toast('Nicht gefunden')}
   } else {
     document.getElementById('scanResult').classList.remove('hidden');
     document.getElementById('scanResult').textContent='📷 Barcode: '+text;
     handleScan(text);
   }
 }
-
-function handleScan(code){
-  var local=d.products.find(function(p){return p.barcode===code});
+async function handleScan(code){
+  var local=products.find(function(p){return p.barcode===code});
   if(local){
-    if(confirm('"'+local.name+'" bereits vorhanden. Menge +1?\nAktuell: '+local.qty+' '+local.unit)){
-      local.qty+=1;sv();render();toast('✅ '+local.name+' +1');
+    if(confirm('"'+local.name+'" vorhanden. +1?\nAktuell: '+local.qty+' '+local.unit)){
+      local.qty+=1;await dbPut('products',local);render();toast('✅ '+local.name+' +1');
+      await dbPut('product_timeline',{id:uid(),prodId:local.id,type:'used',amount:-1,note:'+1 durch Scan',ts:new Date().toISOString()});
     }
     return;
   }
-  lookup(code).then(function(online){
-    if(online){
+  toast('🔍 Online...');
+  try{
+    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)});
+    var j=await r.json();
+    if(j.status===1&&j.product){
+      var p=j.product;
       document.getElementById('fPBarcode').value=code;
-      document.getElementById('fPName').value=online.name;
-      if(online.brand)document.getElementById('fPBrand').value=online.brand;
-      if(online.pkg)document.getElementById('fPPkg').value=online.pkg;
-      document.getElementById('fPCat').value=online.cat||'Sonstiges';
-      openAdd(null,null);toast('✅ Daten aus Online-DB');
-    } else {
-      document.getElementById('fPBarcode').value=code;
-      openAdd(null,null);toast('📝 Manuell ausfüllen');
-    }
-  });
+      document.getElementById('fPName').value=p.product_name||'';
+      if(p.brands)document.getElementById('fPBrand').value=p.brands;
+      var sel=document.getElementById('fPCat'),cat=mapCat(p.categories_tags||[]);
+      for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
+      openM('mProd');toast('✅ Online-Daten');
+    } else {document.getElementById('fPBarcode').value=code;openM('mProd')}
+  }catch(e){document.getElementById('fPBarcode').value=code;openM('mProd')}
 }
-
-function assignToLoc(code){
-  var local=d.products.find(function(p){return p.barcode===code});
-  if(local){
-    local.locId=pendingLoc;sv();render();
-    var loc=d.locations.find(function(l){return l.id===pendingLoc});
-    toast('✅ '+local.name+' → '+loc.name);
-  } else {
-    var pl=pendingLoc;
+async function assignToLoc(code){
+  var local=products.find(function(p){return p.barcode===code});
+  if(local){local.locId=pendingLoc;await dbPut('products',local);render();var loc=locs.find(function(l){return l.id===pendingLoc});toast('✅ '+local.name+' → '+loc.name)}
+  else{var pl=pendingLoc;
     document.getElementById('fPBarcode').value=code;
     document.getElementById('mProdSave').onclick=function(){
       var nm=document.getElementById('fPName').value.trim();if(!nm){toast('Name fehlt!');return}
-      d.products.push({id:uid(),name:nm,barcode:code,cat:document.getElementById('fPCat').value,qty:parseInt(document.getElementById('fPQty').value)||1,unit:document.getElementById('fPUnit').value,pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,locId:pl,brand:document.getElementById('fPBrand').value.trim(),note:'Barcode-Sync'+(document.getElementById('fPNote').value?' · '+document.getElementById('fPNote').value:'')});
-      sv();closeM('mProd');render();
-      var loc=d.locations.find(function(l){return l.id===pl});
-      toast('✅ Gespeichert → '+loc.name);
+      var obj={id:uid(),name:nm,barcode:code,cat:document.getElementById('fPCat').value,qty:parseInt(document.getElementById('fPQty').value)||1,
+        unit:document.getElementById('fPUnit').value,pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,
+        locId:pl,brand:document.getElementById('fPBrand').value.trim(),note:'Scan+Zuweisung',created:today()};
+      dbPut('products',obj).then(function(){closeM('mProd');render();var loc=locs.find(function(l){return l.id===pl});toast('✅ → '+loc.name)});
       pendingLoc=null;
-    };
-    openAdd(null,pl);
-  }
-  pendingLoc=null;
+    };openM('mProd');
+  }pendingLoc=null;
 }
-
 function stopScan(){
-  if(html5qr&&scannerOn){html5qr.stop().catch(function(){});html5qr=null}
-  scannerOn=false;
-  document.getElementById('scannerWrap').classList.add('hidden');
-  document.getElementById('scannerReader').innerHTML='';
+  if(html5qr&&scannerOn){html5qr.stop().catch(function(){});html5qr=null}scannerOn=false;
+  document.getElementById('scanWrap').classList.remove('on');document.getElementById('scanReader').innerHTML='';
 }
 
-// ══ LOCATIONS ══
-function renderLocs(main){
-  var locs=d.locations.sort(function(a,b){return a.name.localeCompare(b.name)});
-  if(!locs.length){main.innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:2.5rem;margin-bottom:8px">🗄️</div><p style="color:#555;font-size:.85rem">Keine Lagerplätze.<br>Tippe + zum Hinzufügen.</p></div>';return}
-  var groups={};locs.forEach(function(l){var c=(l.cat||'Sonstiges').toLowerCase();if(!groups[c])groups[c]=[];groups[c].push(l)});
-  var h='';
-  var order=['kühlschrank','gefrrierschrank','küchenschrank','speisekammer','keller','hauswirtschaft','sonstiges'];
-  order.forEach(function(cat){
-    if(!groups[cat])return;
-    h+='<div style="font-size:.7rem;color:#888;text-transform:uppercase;margin:12px 0 8px;font-weight:600">📁 '+cat.charAt(0).toUpperCase()+cat.slice(1)+'</div>';
-    groups[cat].forEach(function(l){
-      var cnt=d.products.filter(function(p){return p.locId===l.id}).length;
-      h+='<div class="card"><div class="flex" style="align-items:flex-start"><div style="flex:1"><div style="font-weight:600">'+esc(l.name)+'</div><div style="font-size:.75rem;color:#888">'+cnt+' Produkt'+(cnt!==1?'e':'')+' · Code: <span style="color:#6c63ff;font-weight:600">'+esc(l.code)+'</span></div></div><div class="flex" style="gap:4px"><button onclick="showQR(\''+l.id+'\')" style="background:none;border:1px solid #333;color:#888;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer" title="QR">📱</button><button onclick="viewById(\''+l.id+'\')" style="background:none;border:1px solid #333;color:#888;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer" title="Inhalte">👁</button><button onclick="assignLoc(\''+l.id+'\')" style="background:none;border:1px solid #333;color:#888;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer" title="Zuweisen">➕</button><button onclick="delLoc(\''+l.id+'\')" style="background:none;border:1px solid #333;color:#e74c3c;width:32px;height:32px;border-radius:8px;font-size:.8rem;cursor:pointer">🗑</button></div></div></div>';
-    });
+/* ═══ RECIPES ═══ */
+var recipeIngrs=[];
+async function renderRecs(main){
+  recipes=await dbGetAll('recipes');
+  if(!recipes.length){main.innerHTML='<div class="empty"><div class="ic">📖</div><p>Keine Rezepte.<br>Tippe + zum Importieren.</p></div>';return}
+  var avail=new Set(products.map(function(p){return p.name.toLowerCase()}));
+  var filtered=recipes.map(function(r){
+    var has=r.ingredients?r.ingredients.filter(function(ing){return avail.some(function(a){return a.indexOf(ing.name.toLowerCase())>=0||ing.name.toLowerCase().indexOf(a)>=0})}):[];
+    return Object.assign({},r,{hc:has.length,tr:r.ingredients?r.ingredients.length:0,rt:has.length/(r.ingredients?r.ingredients.length:1),missing:r.ingredients?r.ingredients.filter(function(ing){return!avail.some(function(a){return a.indexOf(ing.name.toLowerCase())>=0||ing.name.toLowerCase().indexOf(a)>=0})}):[]});
   });
+  if(RF==='avail')filtered=filtered.filter(function(r){return r.rt>=1});
+  else if(RF==='partial')filtered=filtered.filter(function(r){return r.rt>0&&r.rt<1});
+  filtered.sort(function(a,b){return b.rt-a.rt});
+  var pills='<div class="pills"><div class="pill '+(RF==='all'?'on':'')+'" onclick="setRf(\'all\',this)">Alle ('+recipes.length+')</div><div class="pill '+(RF==='avail'?'on':'')+'" onclick="setRf(\'avail\',this)">✅ Alles da</div><div class="pill '+(RF==='partial'?'on':'')+'" onclick="setRf(\'partial\',this)">⚠️ Teileweise</div></div>';
+  var h=pills+filtered.map(function(r){
+    var ingrHtml='';
+    if(r.ingredients)r.ingredients.forEach(function(ing){
+      var yes=avail.some(function(a){return a.indexOf(ing.name.toLowerCase())>=0||ing.name.toLowerCase().indexOf(a)>=0});
+      ingrHtml+='<span style="color:'+(yes?'var(--green)':'var(--red)')+'">'+(yes?'✓':'✕')+'</span> '+esc(ing.name)+' ';
+    });
+    return '<div class="card"><div style="font-weight:600">'+esc(r.name)+'</div><div style="font-size:.7rem;color:var(--sub);margin:3px 0">⏱ '+esc(r.time)+' · '+esc(r.diff)+' · '+esc(r.cal)+' · '+esc(r.type)+' · '+r.hc+'/'+r.tr+'</div><div style="font-size:.8rem">'+ingrHtml+'</div>'+(r.missing.length&&!RF?'<div style="color:var(--red);font-size:.7rem;margin-top:4px">Fehlend: '+r.missing.map(function(m){return esc(m.name)}).join(', ')+'</div>':'')+'<div class="flex" style="margin-top:8px"><button onclick="delRec(\''+r.id+'\')" class="btn btn-sm btn-s" style="flex:1">🗑</button></div></div>';
+  }).join('');
   main.innerHTML=h;
 }
-
-function saveLocation(){
-  var nm=document.getElementById('fLName').value.trim();if(!nm){toast('Name nötig!');return}
-  var nc='';var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';for(var i=0;i<6;i++)nc+=chars[Math.floor(Math.random()*chars.length)];
-  if(d.locations.find(function(l){return l.code===nc}))return saveLocation();
-  var nl={id:uid(),name:nm,cat:document.getElementById('fLCat').value,code:nc};
-  d.locations.push(nl);sv();closeM('mLoc');render();toast('✅ '+nm);
-  setTimeout(function(){showQR(nl.id)},300);
+function setRf(f,el){RF=f;document.querySelectorAll('.pills .pill').forEach(function(p){p.classList.remove('on')});el.classList.add('on');render()}
+function addRecipeIngr(){recipeIngrs.push({name:'',amount:'',unit:''});renderRecipeIngrs()}
+function renderRecipeIngrs(){var h='';recipeIngrs.forEach(function(ing,i){h+='<div class="flex" style="margin-bottom:6px"><input placeholder="Name" value="'+esc(ing.name)+'" onchange="recipeIngrs['+i+'].name=this.value" style="flex:2;margin-top:0"><input placeholder="Menge" value="'+esc(ing.amount)+'" onchange="recipeIngrs['+i+'].amount=this.value" style="flex:1;margin-top:0"><input placeholder="Einheit" value="'+esc(ing.unit)+'" onchange="recipeIngrs['+i+'].unit=this.value" style="flex:1;margin-top:0"><button onclick="recipeIngrs.splice('+i+',1);renderRecipeIngrs()" style="background:none;border:none;color:var(--red);cursor:pointer">✕</button></div>'});document.getElementById('recipeIngrList').innerHTML=h}
+async function saveRecipe(){
+  var nm=document.getElementById('fRName').value.trim();if(!nm){toast('Name nötig!');return}
+  var rec={id:uid(),name:nm,url:document.getElementById('fRUrl').value.trim(),time:document.getElementById('fRTime').value.trim(),
+    diff:document.getElementById('fRDiff').value,cal:document.getElementById('fRCal').value.trim(),type:document.getElementById('fRTy').value,
+    instructions:document.getElementById('fRInst').value.trim(),ingredients:recipeIngrs.filter(function(i){return i.name}),created:today()};
+  await dbPut('recipes',rec);recipes.push(rec);closeM('mRecipe');render();toast('✅ Rezept');
 }
+async function delRec(id){showCf('Rezept löschen?',function(){dbDel('recipes',id).then(function(){render()});toast('🗍')})}
 
-function delLoc(id){
-  var loc=d.locations.find(function(l){return l.id===id});if(!loc)return;
-  var cnt=d.products.filter(function(p){return p.locId===id}).length;
-  showCf('"'+loc.name+'" löschen?\n'+(cnt?cnt+' Produkt'+(cnt>1?'e':'')+' entfernt':''),function(){
-    if(cnt)d.products=d.products.filter(function(p){return p.locId!==id});
-    d.locations=d.locations.filter(function(l){return l.id!==id});sv();render();toast('🗍');
-  });
+/* ═══ RECIPE IMPORT ═══ */
+async function importRecipe(){
+  var url=document.getElementById('fRImportUrl').value.trim();
+  if(!url){toast('URL eingeben!');return}
+  var status=document.getElementById('rImportStatus');status.textContent='🔍 Lade...';
+  try{
+    var proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(url);
+    var r=await fetch(proxyUrl,{signal:AbortSignal.timeout(8000)});
+    var html=await r.text();status.textContent='📄 '+html.length+' Bytes...';
+    var jsonLd=extractJsonLd(html);
+    if(jsonLd){
+      var recipe=parseRecipe(jsonLd,url);
+      if(recipe.name){
+        importedRecipe=recipe;
+        status.textContent='✅ '+recipe.name;
+        document.getElementById('rImportSave').classList.remove('hidden');
+        document.getElementById('fRName').value=recipe.name;
+        document.getElementById('fRUrl').value=url;
+        document.getElementById('fRTime').value=recipe.time||'';
+        document.getElementById('fRCal').value=recipe.cal||'';
+        document.getElementById('fRDiff').value=recipe.diff||'Einfach';
+        document.getElementById('fRTy').value=recipe.type||'Mittagessen';
+        recipeIngrs=recipe.ingredients||[];renderRecipeIngrs();
+      } else {status.textContent='❌ Kein Rezept-JSON-LD';document.getElementById('rImportSave').classList.add('hidden')}
+    } else {status.textContent='⚠️ Kein JSON-LD. Manuelles Erfassen:';document.getElementById('rImportSave').classList.remove('hidden');importedRecipe={name:'',url:url,ingredients:[]}}
+  }catch(e){status.textContent='❌ '+e.message+'. Manuelles Erfassen:';document.getElementById('rImportSave').classList.remove('hidden');importedRecipe={name:'',url:url,ingredients:[]}}
 }
-
-function showQR(id){
-  var loc=d.locations.find(function(l){return l.id===id});if(!loc)return;
-  document.getElementById('qrTitle').textContent='📱 '+loc.name;
-  document.getElementById('qrInfo').textContent='Code: '+loc.code+' | '+loc.cat;
-  var c=document.getElementById('qrContainer');c.innerHTML='';
-  if(typeof QRCode!=='undefined'){
-    var cv=document.createElement('canvas');
-    QRCode.toCanvas(cv,loc.code,{width:180,margin:1},function(){
-      cv.style.width='180px';cv.style.height='180px';
-      c.appendChild(cv);
-    });
+function extractJsonLd(html){
+  var scripts=html.match(/<script[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gi);
+  if(!scripts)return null;
+  for(var i=0;i<scripts.length;i++){
+    try{
+      var jsonStr=scripts[i].replace(/<script[^>]*>/i,'').replace(/<\/script>/i,'');
+      var data=JSON.parse(jsonStr);
+      if(data['@type']==='Recipe'||(data['@graph']&&data['@graph'].some(function(g){return g['@type']==='Recipe'})))return data;
+      if(data['@graph']){var recipe=data['@graph'].find(function(g){return g['@type']==='Recipe'});if(recipe)return recipe}
+    }catch(e){}
+  }return null;
+}
+function parseRecipe(data,url){
+  return{name:data.name||data.headline||'',time:data.prepTime||data.cookTime||data.totalTime||'',
+    cal:data.calories||'',diff:data.recipeCategory||'Einfach',type:data.recipeCategory||'Mittagessen',
+    ingredients:(data.recipeIngredient||[]).map(function(ing){return{name:ing.trim(),amount:'',unit:''}}),
+    instructions:data.recipeInstructions||'',url:url};
+}
+function saveImportedRecipe(){
+  if(importedRecipe){importedRecipe.id=uid();importedRecipe.created=today();
+    dbPut('recipes',importedRecipe).then(function(){recipes.push(importedRecipe);closeM('mRImport');closeM('mRecipe');render();toast('✅ Importiert')});
   }
-  openM('mQr');
 }
 
-function printQR(){
-  var c=document.getElementById('qrContainer').innerHTML;
-  var t=document.getElementById('qrTitle').textContent;
-  var i=document.getElementById('qrInfo').textContent;
-  var w=window.open('','','width=300,height=400');
-  if(!w){toast('Pop-up blockiert!');return}
-  w.document.write('<!DOCTYPE html><html><head><title>'+esc(t)+'</title><style>body{font-family:sans-serif;text-align:center;padding:20px}@media print{body{margin:0}}</style></head><body><h1>'+esc(t)+'</h1><p>'+esc(i)+'</p>'+c+'</body></html>');
-  w.document.close();setTimeout(function(){w.print()},500);
-}
-
-function viewById(id){viewLoc(d.locations.find(function(l){return l.id===id}))}
-
-function viewLoc(loc){
-  if(!loc)return;
-  document.getElementById('locViewTitle').textContent='📍 '+loc.name;
-  var prods=d.products.filter(function(p){return p.locId===loc.id});
-  if(!prods.length){document.getElementById('locViewContent').innerHTML='<div style="text-align:center;padding:20px;color:#555">Keine Produkte.</div>'}
-  else{
-    document.getElementById('locViewContent').innerHTML=prods.map(function(p){
-      var ex=expSt(p.exp);
-      var exHtml=ex?'<span style="font-size:.7rem;color:'+ex.c+'">'+ex.l+'</span>':'';
-      return '<div class="card" style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600">'+esc(p.name)+'</div><div style="font-size:.75rem;color:#888">'+p.qty+' '+esc(p.unit)+(p.pkg?' · '+esc(p.pkg):'')+exHtml+'</div></div><div class="flex" style="gap:4px"><button onclick="closeM(\'mLocView\');editProd(\''+p.id+'\')" style="background:none;border:1px solid #333;color:#888;width:30px;height:30px;border-radius:6px;font-size:.8rem;cursor:pointer">✏️</button><button onclick="closeM(\'mLocView\');delProd(\''+p.id+'\')" style="background:none;border:1px solid #333;color:#e74c3c;width:30px;height:30px;border-radius:6px;font-size:.8rem;cursor:pointer">🗑</button></div></div>';
-    }).join('');
-  }
-  openM('mLocView');
-}
-
-function assignLoc(id){
-  var loc=d.locations.find(function(l){return l.id===id});if(!loc)return;
-  toast('🏷 Jetzt Barcode scannen für '+loc.name);
-  pendingLoc=id;
-  tab='pantry';go('pantry',document.querySelector('[data-tab="pantry"]'));
-  scanProd();
-}
-
-// ══ RECIPES ══
-var RECIPES=[
-  {n:'Spaghetti Bolognese',t:'30 Min',d:'Einfach',c:'550 kcal',ty:'Mittagessen',i:['Nudeln','Tomaten','Zwiebeln','Knoblauch','Rinderhack','Olivenöl','Salz','Pfeffer','Oregano']},
-  {n:'Gemüsepilaw',t:'25 Min',d:'Einfach',c:'400 kcal',ty:'Mittagessen',i:['Reis','Paprika','Zucchini','Zwiebeln','Knoblauch','Öl','Salz']},
-  {n:'Omelette',t:'10 Min',d:'Einfach',c:'300 kcal',ty:'Frühstück',i:['Eier','Käse','Schinken','Salz','Pfeffer','Butter']},
-  {n:'Müsli mit Obst',t:'5 Min',d:'Einfach',c:'250 kcal',ty:'Frühstück',i:['Müslimix','Milch','Banane','Beeren']},
-  {n:'Tomatensuppe',t:'20 Min',d:'Einfach',c:'200 kcal',ty:'Mittagessen',i:['Tomaten','Zwiebeln','Knoblauch','Brühe','Basilikum','Sahne']},
-  {n:'Pasta Carbonara',t:'20 Min',d:'Mittel',c:'600 kcal',ty:'Mittagessen',i:['Spaghetti','Eier','Käse','Bauchfleisch','Salz','Pfeffer','Petersilie']},
-  {n:'Kartoffelgratin',t:'45 Min',d:'Mittel',c:'450 kcal',ty:'Mittagessen',i:['Kartoffeln','Sahne','Käse','Knoblauch','Salz','Muskat']},
-  {n:'Geflügelnudeln',t:'25 Min',d:'Einfach',c:'500 kcal',ty:'Mittagessen',i:['Nudeln','Hähnchen','Paprika','Sojasauce','Knoblauch']},
-  {n:'Käseschnitte',t:'15 Min',d:'Einfach',c:'350 kcal',ty:'Abendessen',i:['Toastbrot','Käse','Butter']},
-  {n:'Reispudding',t:'30 Min',d:'Einfach',c:'300 kcal',ty:'Dessert',i:['Reis','Milch','Zucker','Zimt','Vanille']},
-];
-
-function renderRec(main){
-  var avail=new Set(d.products.map(function(p){return p.name.toLowerCase()}));
-  var filtered=RECIPES.map(function(r){
-    var has=r.i.filter(function(i){return Array.from(avail).some(function(a){return a.indexOf(i.toLowerCase())>=0||i.toLowerCase().indexOf(a)>=0})});
-    return Object.assign({},r,{hc:has.length,tr:r.i.length,rt:has.length/r.i.length,mi:r.i.filter(function(i){return!has.includes(i)})});
-  });
-  if(rf==='avail')filtered=filtered.filter(function(r){return r.rt===1});
-  else if(rf==='partial')filtered=filtered.filter(function(r){return r.rt>0&&r.rt<1});
-  filtered.sort(function(a,b){return b.rt-a.rt});
-  if(!filtered.length){main.innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:2.5rem;margin-bottom:8px">📖</div><p style="color:#555;font-size:.85rem">Keine Rezepte.</p></div>';return}
-  main.innerHTML=filtered.map(function(r){
-    var ingr=r.i.map(function(i){var y=Array.from(avail).some(function(a){return a.indexOf(i.toLowerCase())>=0||i.toLowerCase().indexOf(a)>=0});return '<span style="color:'+(y?'#27ae60':'#e74c3c')+'">'+(y?'✓':'✕')+'</span> '+esc(i)+' '}).join('');
-    return '<div class="card"><h3 style="font-size:.95rem;margin-bottom:4px">'+esc(r.n)+'</h3><div style="font-size:.7rem;color:#888;margin-bottom:6px">⏱ '+esc(r.t)+' · '+esc(r.d)+' · '+esc(r.c)+' · '+esc(r.ty)+' · '+r.hc+'/'+r.tr+' Zutaten</div><div>'+ingr+'</div>'+(r.mi.length&&!rf?'<div style="color:#e74c3c;font-size:.75rem;margin-top:6px">Fehlend: '+r.mi.map(function(m){return esc(m)}).join(', ')+'</div>':'')+'</div>';
-  }).join('');
-}
-function setRf(f,el){rf=f;document.querySelectorAll('[data-r]').forEach(function(p){p.classList.remove('on')});el.classList.add('on');render()}
-
-// ══ WEEK PLAN ══
-function renderWeek(main){
-  if(!d.weekPlan){main.innerHTML='<div style="text-align:center;padding:20px"><button class="btn btn-pri" onclick="genWeek()" style="width:100%;padding:14px">✨ Wochenplan generieren</button><div style="text-align:center;padding:20px 0"><p style="color:#555;font-size:.85rem">Kein Wochenplan.</p></div></div>';return}
+/* ═══ WEEK PLAN ═══ */
+async function renderWeek(main){
   var days=['Mo','Di','Mi','Do','Fr','Sa','So'];
-  main.innerHTML=d.weekPlan.map(function(w,i){
-    return '<div class="card"><div style="font-weight:600;font-size:.9rem;color:#6c63ff;margin-bottom:6px">'+days[i]+'</div>'+w.recipes.map(function(r){return '<div style="padding:3px 0;font-size:.85rem;display:flex;justify-content:space-between"><span>'+esc(r.n)+'</span><span style="color:#888;font-size:.75rem">'+esc(r.ty)+'</span></div>'}).join('')+'</div>';
-  }).join('');
+  var h='<button class="btn btn-p" onclick="genWeek()" style="width:100%;padding:13px;margin-bottom:14px">✨ Wochenplan generieren</button>';
+  var plans=await dbGetAll('weekly_plans');
+  var currentPlan=plans.length?plans[0]:null;
+  if(currentPlan){
+    h+='<div style="font-size:.75rem;color:var(--sub);margin-bottom:8px">Woche ab '+currentPlan.weekStart+'</div>';
+    h+=currentPlan.plans.map(function(w){
+      return '<div class="card"><div style="font-weight:600;color:var(--pri);margin-bottom:6px">'+w.day+'</div>'+
+        w.recipes.map(function(r){return '<div style="font-size:.85rem;padding:2px 0">'+esc(r.n||r.name||'')+'<span style="color:var(--sub);font-size:.7rem"> · '+esc(r.ty||r.type||'')+'</span></div>'}).join('')+'</div>';
+    }).join('');
+  } else {
+    h+='<div class="empty" style="padding:20px"><p>Noch kein Wochenplan.</p></div>';
+  }
+  main.innerHTML=h;
 }
-
-function genWeek(){
-  var avail=new Set(d.products.map(function(p){return p.name.toLowerCase()}));
-  var scored=RECIPES.map(function(r){var s=0;r.i.forEach(function(i){if(Array.from(avail).some(function(a){return a.indexOf(i.toLowerCase())>=0}))s++});return Object.assign({},r,{sc:s})}).sort(function(a,b){return b.sc-a.sc});
+async function genWeek(){
+  var avail=new Set(products.map(function(p){return p.name.toLowerCase()}));
+  recipes=await dbGetAll('recipes');
+  var scored=recipes.map(function(r){var sc=0;if(r.ingredients)r.ingredients.forEach(function(ing){avail.forEach(function(a){if(a.indexOf(ing.name.toLowerCase())>=0||ing.name.toLowerCase().indexOf(a)>=0)sc++})});return Object.assign({},r,{sc:sc})}).sort(function(a,b){return b.sc-a.sc});
   var days=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
   var types=['Frühstück','Mittagessen','Abendessen'];
-  var wp=[];
-  for(var di=0;di<7;di++){
-    var meals=types.map(function(type,ti){var m=scored.filter(function(r){return r.ty===type});return m.length?m[(di+ti)%m.length]:scored[di%scored.length]||null}).filter(Boolean);
-    wp.push({day:days[di],recipes:meals});
-  }
-  d.weekPlan=wp;sv();render();toast('✨ Wochenplan!');
+  var plans=days.map(function(day,di){
+    return {id:uid(),day:day,recipes:types.map(function(type,ti){
+      var matches=scored.filter(function(r){return r.type===type});
+      return matches.length?Object.assign({},matches[(di+ti)%matches.length]):scored[di%scored.length]||null;
+    }).filter(Boolean)};
+  });
+  await dbPut('weekly_plans',{id:'current_week',plans:plans,weekStart:today()});
+  toast('✨ Wochenplan!');render();
 }
 
-// ══ SHOPPING ══
-function renderShop(main){
-  var sugg=d.products.filter(function(p){return(p.qty||0)<=1}).map(function(p){return{name:p.name,qty:1,unit:p.unit,cat:p.cat,reason:(p.qty<=1?'🔴 Fast leer':'🟡 Nachfüllen')}});
-  var sh='';
-  if(sugg.length&&d.shopping.length===0){
-    sh+='<div style="font-size:.7rem;color:#888;text-transform:uppercase;margin:8px 0 8px">💡 Vorschläge</div>';
-    sugg.forEach(function(s){
-      sh+='<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px"><div style="flex:1"><div style="font-weight:600;font-size:.9rem">'+esc(s.name)+'</div><div style="font-size:.75rem;color:#888">'+s.qty+' '+s.unit+' · '+esc(s.cat)+'</div></div><div style="font-size:.75rem;color:#888">'+s.reason+'</div><button onclick="addSugg(\''+s.name+'\',\''+s.unit+'\',\''+s.cat+'\')" style="background:#6c63ff;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:.8rem;cursor:pointer">+</button></div>';
-    });
+/* ═══ SHOPPING ═══ */
+async function renderShop(main){
+  shopping=await dbGetAll('shopping');
+  var sugg=products.filter(function(p){return(p.qty||0)<=1}).map(function(p){return{name:p.name,qty:1,unit:p.unit,cat:p.cat,reason:p.qty<=1?'🔴 Fast leer':'🟡 Nachfüllen'}});
+  var h='';
+  if(sugg.length&&shopping.length===0){
+    h+='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">💡 Vorschläge</div>';
+    sugg.forEach(function(s){h+='<div class="card" style="display:flex;align-items:center;gap:8px;padding:10px 14px"><div style="flex:1"><div style="font-weight:600">'+esc(s.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+s.qty+' '+s.unit+'</div></div><div style="font-size:.7rem;color:var(--sub)">'+s.reason+'</div><button onclick="addSugg(\''+s.name+'\',\''+s.unit+'\',\''+s.cat+'\')" class="btn btn-sm btn-p" style="margin-top:0">+</button></div>'});
   }
-  sh+='<div style="display:flex;gap:8px;margin-bottom:14px"><input type="text" id="shopInput" placeholder="Produktname..." onkeydown="if(event.key===\'Enter\')addShop()" style="flex:1;margin-top:0"><input type="number" id="shopQty" value="1" min="1" style="width:60px;margin-top:0"><button onclick="addShop()" class="btn btn-pri btn-sm" style="margin-top:0">Hinzufügen</button></div>';
-  if(!d.shopping.length){sh+='<div style="text-align:center;padding:30px 20px;color:#555">Einkaufsliste ist leer.</div>'}
+  h+='<div class="flex" style="margin-bottom:14px"><input type="text" id="shopInput" placeholder="Produktname..." onkeydown="if(event.key===\'Enter\')addShop()" style="flex:1;margin-top:0"><input type="number" id="shopQty" value="1" min="1" style="width:55px;margin-top:0"><button onclick="addShop()" class="btn btn-p btn-sm" style="margin-top:0">Hinzufügen</button></div>';
+  if(!shopping.length)h+='<div style="text-align:center;padding:30px;color:var(--sub)">Einkaufsliste leer.</div>';
   else{
-    sh+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:.8rem;color:#888">'+d.shopping.length+' Artikel</span><button onclick="clearShop()" class="btn btn-red btn-sm" style="background:none;border:1px solid #e74c3c;color:#e74c3c;font-size:.75rem">Leeren</button></div>';
-    d.shopping.forEach(function(item,i){
-      var inInv=d.products.some(function(p){return p.name.toLowerCase()===item.name.toLowerCase()});
-      sh+='<div class="card" style="'+(inInv?'opacity:.6;':'')+'display:flex;align-items:center;gap:10px;padding:12px 14px"><input type="checkbox" '+((inInv?'disabled checked':''))+' style="width:20px;height:20px;accent-color:#6c63ff"><div style="flex:1"><div style="font-weight:600;font-size:.9rem">'+esc(item.name)+'</div><div style="font-size:.75rem;color:#888">'+item.qty+' '+esc(item.unit||'')+'</div></div>'+(inInv?'<button onclick="moveInv('+i+')" style="background:#6c63ff;color:#fff;border:none;padding:6px 10px;border-radius:6px;font-size:.75rem;cursor:pointer">✓</button>':'')+'<button onclick="delShop('+i+')" style="background:none;border:none;color:#e74c3c;font-size:1rem;cursor:pointer">✕</button></div>';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:.75rem;color:var(--sub)">'+shopping.length+' Artikel</span><button onclick="clearShop()" class="btn btn-sm btn-s" style="background:none;border:1px solid var(--red);color:var(--red);font-size:.7rem">Leeren</button></div>';
+    shopping.forEach(function(item,i){
+      var inInv=products.some(function(p){return p.name.toLowerCase()===item.name.toLowerCase()});
+      h+='<div class="card" style="opacity:'+(inInv?'0.5':'1')+';display:flex;align-items:center;gap:8px;padding:10px 14px"><input type="checkbox" '+(inInv?'disabled checked':'')+' style="width:18px;height:18px;accent-color:var(--pri)"><div style="flex:1"><div style="font-weight:600;font-size:.85rem">'+esc(item.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+item.qty+' '+esc(item.unit||'')+'</div></div>'+(inInv?'<button onclick="moveInv('+i+')" class="btn btn-sm btn-p" style="margin-top:0">✓</button>':'')+'<button onclick="delShop('+i+')" class="btn btn-sm btn-s" style="margin-top:0;color:var(--red)">✕</button></div>';
     });
-  }
-  main.innerHTML=sh;
+  }main.innerHTML=h;
 }
-
-function addShop(){
+async function addShop(){
   var nm=document.getElementById('shopInput').value.trim();if(!nm)return;
   var qty=parseInt(document.getElementById('shopQty').value)||1;
-  d.shopping.push({id:uid(),name:nm,qty:qty,unit:'Stk',cat:'Sonstiges'});
-  document.getElementById('shopInput').value='';sv();render();toast('✅ '+nm);
+  shopping.push({id:uid(),name:nm,qty:qty,unit:'Stk',cat:'Sonstiges'});
+  await dbPut('shopping',shopping[shopping.length-1]);document.getElementById('shopInput').value='';render();toast('✅ '+nm);
 }
-function addSugg(n,u,c){if(d.shopping.some(function(s){return s.name.toLowerCase()===n.toLowerCase()})){toast('⚠️ Schon da');return}d.shopping.push({id:uid(),name:n,qty:1,unit:u,cat:c});sv();render();toast('✅')}
-function delShop(i){d.shopping.splice(i,1);sv();render()}
-function clearShop(){showCf('Liste leeren?',function(){d.shopping=[];sv();render();toast('🗍')})}
-function moveInv(i){
-  var item=d.shopping[i];if(!item)return;
-  var ex=d.products.find(function(p){return p.name.toLowerCase()===item.name.toLowerCase()});
-  if(ex){ex.qty+=item.qty;toast('✅ '+item.name)}
-  else{d.products.push({id:uid(),name:item.name,barcode:'',cat:item.cat||'Sonstiges',qty:item.qty,unit:item.unit,pkg:'',exp:'',locId:null,note:''});toast('✅ '+item.name+' angelegt')}
-  d.shopping.splice(i,1);sv();render();
+function addSugg(n,u,c){if(shopping.some(function(s){return s.name.toLowerCase()===n.toLowerCase()})){toast('⚠️ Schon da');return}shopping.push({id:uid(),name:n,qty:1,unit:u,cat:c});dbPut('shopping',shopping[shopping.length-1]);render();toast('✅')}
+function delShop(i){shopping.splice(i,1);render();toast('🗍')}
+async function clearShop(){showCf('Liste leeren?',function(){shopping=[];render();toast('🗍')})}
+async function moveInv(i){
+  var item=shopping[i];if(!item)return;
+  var ex=products.find(function(p){return p.name.toLowerCase()===item.name.toLowerCase()});
+  if(ex){ex.qty+=item.qty;await dbPut('products',ex);toast('✅ '+item.name)}
+  else{var np={id:uid(),name:item.name,barcode:'',cat:item.cat||'Sonstiges',qty:item.qty,unit:item.unit,pkg:'',exp:'',locId:null,note:'',created:today()};products.push(np);await dbPut('products',np);toast('✅ '+item.name+' angelegt')}
+  shopping.splice(i,1);render();
 }
 
-// ══ SETTINGS ══
+/* ═══ SETTINGS ═══ */
 function renderSet(main){
-  main.innerHTML='<div style="font-size:.7rem;color:#888;text-transform:uppercase;margin:8px 0 8px">📤 Backup herunterladen</div>'+
-    '<button onclick="exportData()" class="btn btn-pri" style="width:100%;padding:14px;margin-bottom:16px">📥 JSON herunterladen</button>'+
-    '<div style="font-size:.7rem;color:#888;text-transform:uppercase;margin:8px 0 8px">📥 Backup importieren</div>'+
-    '<input type="file" accept=".json" onchange="importData(event)" style="margin-bottom:16px">'+
-    '<div style="font-size:.7rem;color:#888;text-transform:uppercase;margin:8px 0 8px">🗑️ Alles löschen</div>'+
-    '<button onclick="clearAll()" class="btn btn-red" style="width:100%;padding:14px">Unwiderruflich löschen</button>';
+  main.innerHTML='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📤 Backup</div>'+
+    '<button onclick="exportDB()" class="btn btn-p" style="width:100%;padding:13px;margin-bottom:14px">📥 JSON herunterladen</button>'+
+    '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📥 Import</div>'+
+    '<input type="file" accept=".json" onchange="importDB(event)" style="margin-bottom:16px">'+
+    '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">🗑️ Alles löschen</div>'+
+    '<button onclick="clearDB()" class="btn btn-r" style="width:100%;padding:13px">Unwiderruflich löschen</button>';
 }
+async function exportDB(){
+  var data={};var stores=['categories','rooms','locations','products','recipe_ingredients','shopping','weekly_meals','weekly_plans','product_timeline'];
+  for(var i=0;i<stores.length;i++)data[stores[i]]=await dbGetAll(stores[i]);
+  var b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='kuechen-vorrat-'+today()+'.json';a.click();URL.revokeObjectURL(u);toast('📤');
+}
+async function importDB(e){
+  var f=e.target.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(ev){try{var d=JSON.parse(ev.target.result);
+    Object.keys(d).forEach(function(store){dbClear(store).then(function(){d[store].forEach(function(obj){dbPut(store,obj)})})});
+    toast('📥 Importiert!');render();
+  }catch(err){toast('❌ '+err.message)}};r.readAsText(f);e.target.value='';
+}
+async function clearDB(){showCf('ALLE Daten unwiderruflich löschen?',function(){
+  var stores=['categories','rooms','locations','products','recipe_ingredients','shopping','weekly_meals','weekly_plans','product_timeline'];
+  stores.forEach(function(s){dbClear(s)});render();toast('🗍');
+});}
 
-function exportData(){
-  var b=new Blob([JSON.stringify({products:d.products,locations:d.locations,shopping:d.shopping,appliances:d.appliances,weekPlan:d.weekPlan,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
-  var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download='kuechen-vorrat-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(u);toast('📤 Exportiert!');
-}
-function importData(e){
-  var f=e.target.files[0];if(!f)return;
-  var r=new FileReader();
-  r.onload=function(ev){try{var j=JSON.parse(ev.target.result);if(j.products)d.products=j.products;if(j.locations)d.locations=j.locations;if(j.shopping)d.shopping=j.shopping;if(j.weekPlan)d.weekPlan=j.weekPlan;sv();render();toast('📥 Importiert! '+d.products.length+' Produkte')}catch(err){toast('❌ '+err.message)}};
-  r.readAsText(f);e.target.value='';
-}
-function clearAll(){showCf('Alles unwiderruflich löschen?',function(){d=ld();sv();render();toast('🗍')})}
-
-// ══ INIT ══
+/* ═══ INIT ═══ */
+openDB().then(function(){
+  document.getElementById('pw').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();doLogin()}});
+}).catch(function(e){console.error('DB init:',e)});
 </script>
 </body>
 </html>

@@ -78,13 +78,13 @@ select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
 <div id="mProd" class="modal"><div class="modal-body">
 <h2 id="mProdTitle">Produkt</h2>
 <div class="fg"><label>Name *</label><input id="fPName" placeholder="z.B. Nudeln"></div>
-<div class="flex"><div class="fg"><label>Barcode</label><input id="fPBarcode" placeholder="Optional" inputmode="numeric"></div><button class="btn btn-sm btn-p" onclick="doOnlineLookup()" style="align-self:flex-end;margin-bottom:12px" title="Online suchen">🔍</button></div>
+<div class="fg"><label>Barcode</label><div class="flex"><input id="fPBarcode" placeholder="Optional" inputmode="numeric"><button class="btn btn-sm btn-p" onclick="scanFromModal()" style="margin-top:0;white-space:nowrap" title="Barcode scannen">📷 Scannen</button></div></div>
 <div id="lookupInfo" class="hidden" style="background:#16213e;border-radius:10px;padding:10px;margin-bottom:12px;font-size:.8rem"></div>
 <div class="fg"><label>Kategorie</label><select id="fPCat"></select></div>
 <div class="flex"><div class="fg"><label>Menge *</label><input id="fPQty" type="number" placeholder="0" min="0"></div><div class="fg"><label>Einheit</label><select id="fPUnit"><option>Stk</option><option>g</option><option>kg</option><option>ml</option><option>l</option></select></div></div>
-<div class="flex"><div class="fg"><label>Gebinde</label><input id="fPPkg" placeholder="500ml"></div><div class="fg"><label>Verfall</label><input id="fPExp" type="date"></div></div>
+<div class="flex"><div class="fg"><label>Gebinde</label><input id="fPPkg" placeholder="z.B. 500ml"></div><div class="fg"><label>Verfall</label><input id="fPExp" type="date"></div></div>
 <div class="fg"><label>Lagerplatz</label><select id="fPLoc"><option value="">— Ohne —</option></select></div>
-<div class="fg"><label>Marke</label><input id="fPBrand" placeholder="Optional"></div>
+<div class="fg"><label>Hersteller / Marke</label><input id="fPBrand" placeholder="z.B. Barilla"></div>
 <div class="fg"><label>Bemerkung</label><textarea id="fPNote"></textarea></div>
 <div class="mbtns"><button class="btn btn-s" onclick="closeM('mProd')">Abbrechen</button><button class="btn btn-p" id="mProdSave" onclick="saveProduct()">Speichern</button></div>
 </div></div>
@@ -554,20 +554,76 @@ async function handleScan(code){
     }
     return;
   }
-  toast('🔍 Online...');
+  toast('🔍 Online-Suche...');
   try{
-    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)});
+    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(8000)});
     var j=await r.json();
     if(j.status===1&&j.product){
       var p=j.product;
+      var name=p.product_name||'';
+      var brand=p.brands||'';
+      var pkg=p.quantity||'';
+      var cat=mapCat(p.categories_tags||[]);
+
+      // Wenn Modal offen: fülle es direkt
+      if(document.getElementById('mProd').classList.contains('on')){
+        document.getElementById('fPBarcode').value=code;
+        if(name)document.getElementById('fPName').value=name;
+        if(brand)document.getElementById('fPBrand').value=brand;
+        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var sel=document.getElementById('fPCat');
+        for(var i=0;i<sel.options.length;i++){
+          if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}
+        }
+        document.getElementById('lookupInfo').classList.remove('hidden');
+        document.getElementById('lookupInfo').innerHTML=
+          '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
+          (brand?'<br>🏭 '+esc(brand):'')+
+          (pkg?'<br>📦 '+esc(extPkg(pkg)||pkg):'')+
+          (p.countries?'<br>🌍 '+esc(p.countries):'')
+        ;
+        toast('✅ Produkt gefunden!');
+      } else {
+        // Scanner direkt aus Vorrat-Tab
+        document.getElementById('fPBarcode').value=code;
+        document.getElementById('fPName').value=name||'';
+        if(brand)document.getElementById('fPBrand').value=brand;
+        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var sel=document.getElementById('fPCat');
+        for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
+        openM('mProd');
+      }
+    } else {
       document.getElementById('fPBarcode').value=code;
-      document.getElementById('fPName').value=p.product_name||'';
-      if(p.brands)document.getElementById('fPBrand').value=p.brands;
-      var sel=document.getElementById('fPCat'),cat=mapCat(p.categories_tags||[]);
-      for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
-      openM('mProd');toast('✅ Online-Daten');
-    } else {document.getElementById('fPBarcode').value=code;openM('mProd')}
-  }catch(e){document.getElementById('fPBarcode').value=code;openM('mProd')}
+      if(document.getElementById('mProd').classList.contains('on')){
+        document.getElementById('lookupInfo').classList.remove('hidden');
+        document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Nicht in OpenFoodFacts</span>';
+      } else {openM('mProd')}
+    }
+  }catch(e){
+    document.getElementById('fPBarcode').value=code;
+    if(document.getElementById('mProd').classList.contains('on')){
+      document.getElementById('lookupInfo').classList.remove('hidden');
+      document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Netzfehler</span>';
+    } else {openM('mProd')}
+  }
+}
+function scanFromModal(){
+  toast('📷 Kamera startet...');
+  scanMode='product';pendingLoc=null;
+  try{
+    var hq=new Html5Qrcode('scanReader',false);
+    hq.start({facingMode:'environment'},{fps:10,qrbox:250},function(text){
+      hq.stop().catch(function(){});hq=null;
+      document.getElementById('scanWrap').classList.remove('on');
+      document.getElementById('scanReader').innerHTML='';
+      handleScan(text);
+    },function(){}).catch(function(e){
+      toast('❌ '+e.message);
+      document.getElementById('scanWrap').classList.remove('on');
+      document.getElementById('scanReader').innerHTML='';
+    });
+  }catch(e){toast('❌ Kamera nicht verfügbar')}
 }
 async function assignToLoc(code){
   var local=products.find(function(p){return p.barcode===code});

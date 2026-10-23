@@ -422,7 +422,7 @@ async function doOnlineLookup(){
     if(j.status===1&&j.product){
     var p=j.product,cat=mapCat(p.categories_tags||[]),pkg=extPkg(p.quantity||'');
     document.getElementById('lookupInfo').classList.remove('hidden');
-    document.getElementById('lookupInfo').innerHTML='✅ <b>'+esc(p.product_name||'Unbekannt')+'</b>'+\
+    document.getElementById('lookupInfo').innerHTML='✅ <b>'+esc(p.product_name||'Unbekannt')+'</b>'+
       (p.brands?' · '+esc(p.brands):'')+(pkg?' · '+esc(pkg):'')+(p.countries?'<br>🌍 '+esc(p.countries):'');
     if(!document.getElementById('fPName').value)document.getElementById('fPName').value=p.product_name||'';
     if(!document.getElementById('fPPkg').value&&pkg)document.getElementById('fPPkg').value=pkg;

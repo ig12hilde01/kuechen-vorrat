@@ -151,6 +151,14 @@ select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
 <div class="mbtns"><button class="btn btn-s" onclick="closeM('mConfirm')">Abbrechen</button><button class="btn btn-r" id="confirmBtn">Löschen</button></div>
 </div></div>
 
+<div id="mCat" class="modal"><div class="modal-body">
+<h2 id="mCatTitle">Kategorie</h2>
+<div class="fg"><label>Name *</label><input id="fCatName" placeholder="z.B. Backzutaten"></div>
+<div class="fg"><label>Emoji</label><input id="fCatEmoji" placeholder="z.B. 🍰" style="width:80px"></div>
+<div class="fg"><label>Farbe</label><input id="fCatColor" type="color" value="#6c63ff" style="height:44px;cursor:pointer"></div>
+<div class="mbtns"><button class="btn btn-s" onclick="closeM('mCat')">Abbrechen</button><button class="btn btn-p" id="mCatSave" onclick="saveCat()">Speichern</button></div>
+</div></div>
+
 <div id="timelineModal" class="modal"><div class="modal-body">
 <h2 id="tlTitle">Timeline</h2>
 <div class="flex" style="margin-bottom:12px">
@@ -280,6 +288,10 @@ async function go(t,btn){
   var titles={pantry:'🍽 Vorrat',locations:'🗄 Lager',recipes:'📖 Rezepte',weekplan:'📅 Woche',shopping:'🛒 Liste',settings:'⚙️'};
   document.getElementById('hdrTitle').textContent=titles[t]||'Vorrat';
   await render();
+}
+function goCats(){
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('on')});
+  renderCats();
 }
 function fabClick(){
   if(TAB==='pantry'||TAB==='locations')openAddProd();
@@ -992,12 +1004,82 @@ async function moveInv(i){
 
 /* ═══ SETTINGS ═══ */
 function renderSet(main){
-  main.innerHTML='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📤 Backup</div>'+
+  var h='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">🏷 Kategorien verwalten</div>'+
+    '<button onclick="goCats()" class="btn btn-p" style="width:100%;padding:13px;margin-bottom:14px">📋 Kategorien bearbeiten</button>'+
+    '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📤 Backup</div>'+
     '<button onclick="exportDB()" class="btn btn-p" style="width:100%;padding:13px;margin-bottom:14px">📥 JSON herunterladen</button>'+
     '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📥 Import</div>'+
     '<input type="file" accept=".json" onchange="importDB(event)" style="margin-bottom:16px">'+
     '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">🗑️ Alles löschen</div>'+
     '<button onclick="clearDB()" class="btn btn-r" style="width:100%;padding:13px">Unwiderruflich löschen</button>';
+  main.innerHTML=h;
+}
+async function renderCats(){
+  cats=await dbGetAll('categories');
+  var h='<button onclick="backToSettings()" class="btn btn-sm btn-s" style="margin-bottom:12px">← Zurück</button>'+
+    '<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:8px 0">📋 '+cats.length+' Kategorien</div>'+
+    '<button onclick="openAddCat()" class="btn btn-p" style="width:100%;padding:13px;margin-bottom:14px">+ Neue Kategorie</button>';
+  cats.forEach(function(c){
+    var cnt=products.filter(function(p){return p.cat===c.name}).length;
+    h+='<div class="card" style="display:flex;align-items:center;gap:8px;padding:10px 14px">'+
+      '<div style="flex:1">'+
+        '<div style="font-weight:600">'+c.emoji+' '+esc(c.name)+'</div>'+
+        '<div style="font-size:.7rem;color:var(--sub)">'+cnt+' Produkt'+(cnt!==1?'e':'')+(c.color?' · <span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:'+c.color+';vertical-align:middle"></span>':'')+'</div>'+
+      '</div>'+
+      '<button onclick="editCat(\\''+c.id+'\\')" class="btn btn-sm btn-s" style="margin-top:0">✏️</button>'+
+      '<button onclick="delCat(\\''+c.id+'\\')" class="btn btn-sm btn-s" style="margin-top:0;color:var(--red)">🗑</button>'+
+    '</div>';
+  });
+  document.getElementById('mainArea').innerHTML=h;
+  document.getElementById('hdrTitle').textContent='🏷 Kategorien';
+}
+function backToSettings(){
+  TAB='settings';
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-tab')==='settings')});
+  renderSet(document.getElementById('mainArea'));
+  document.getElementById('hdrTitle').textContent='⚙️';
+}
+function openAddCat(){
+  document.getElementById('mCatTitle').textContent='Neue Kategorie';
+  document.getElementById('fCatName').value='';document.getElementById('fCatEmoji').value='';document.getElementById('fCatColor').value='#6c63ff';
+  document.getElementById('mCatSave').onclick=function(){saveCat(null)};
+  openM('mCat');setTimeout(function(){document.getElementById('fCatName').focus()},150);
+}
+function editCat(id){
+  var c=cats.find(function(x){return x.id===id});if(!c)return;
+  document.getElementById('mCatTitle').textContent='Kategorie bearbeiten';
+  document.getElementById('fCatName').value=c.name;document.getElementById('fCatEmoji').value=c.emoji;document.getElementById('fCatColor').value=c.color||'#6c63ff';
+  document.getElementById('mCatSave').onclick=function(){saveCat(id)};
+  openM('mCat');
+}
+async function saveCat(editId){
+  var nm=document.getElementById('fCatName').value.trim();if(!nm){toast('Name nötig!');return}
+  var emoji=document.getElementById('fCatEmoji').value.trim()||'📦';
+  var color=document.getElementById('fCatColor').value.trim()||'#6c63ff';
+  if(editId){
+    var c=cats.find(function(x){return x.id===editId});if(!c)return;
+    var oldName=c.name;
+    c.name=nm;c.emoji=emoji;c.color=color;
+    await dbPut('categories',c);
+    // Produkte mit altem Namen aktualisieren
+    if(oldName!==nm){
+      var prods=products.filter(function(p){return p.cat===oldName});
+      for(var i=0;i<prods.length;i++){prods[i].cat=nm;await dbPut('products',prods[i])}
+    }
+    toast('✅ Kategorie aktualisiert');
+  }else{
+    if(cats.some(function(c){return c.name===nm})){toast('⚠️ Kategorie existiert bereits');return}
+    var obj={id:uid(),name:nm,emoji:emoji,color:color};
+    cats.push(obj);await dbPut('categories',obj);toast('✅ Kategorie erstellt');
+  }
+  closeM('mCat');renderCats();render();
+}
+async function delCat(id){
+  var c=cats.find(function(x){return x.id===id});if(!c)return;
+  var cnt=products.filter(function(p){return p.cat===c.name}).length;
+  showCf('"'+c.name+'" löschen?\n'+(cnt?cnt+' Produkt'+(cnt>1?'e':'')+' haben diese Kategorie':''),function(){
+    cats=cats.filter(function(x){return x.id!==id});dbDel('categories',id).then(function(){renderCats();render()});toast('🗍');
+  });
 }
 async function exportDB(){
   var data={};var stores=['categories','rooms','locations','products','recipe_ingredients','shopping','weekly_meals','weekly_plans','product_timeline'];

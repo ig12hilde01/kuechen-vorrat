@@ -522,33 +522,79 @@ function assignLoc(id){
 
 /* ═══ SCANNER ═══ */
 var html5qr=null,scannerOn=false;
-function scanProd(){scanMode='product';pendingLoc=null;document.getElementById('scanWrap').classList.add('on');
-  document.getElementById('scanResult').classList.add('hidden');scannerOn=true;
-  try{html5qr=new Html5Qrcode('scanReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:250},onScan,function(){})}
-  catch(e){toast('❌ Kamera');stopScan()}
+
+/** Human-readable error → toast + close overlay */
+function scannerError(err){
+  var msg='Kamera-Fehler';
+  if(err&&err.message){
+    var m=err.message.toLowerCase();
+    if(m.indexOf('permission')>=0||m.indexOf('denied')>=0) msg='Kamera-Zugriff verweigert — bitte erlauben Sie den Kamerazugriff in den Safari-Einstellungen.';
+    else if(m.indexOf('notfound')>=0||m.indexOf('not found')>=0) msg='Keine Kamera an diesem Gerät gefunden.';
+    else if(m.indexOf('inactive')>=0||m.indexOf('notstarted')>=0) msg='Kamera noch nicht gestartet. Bitte Tippen Sie erneut auf Scannen.';
+    else if(m.indexOf('nospace')>=0) msg='Unzureichender Speicher für Kamera.';
+    else msg='Kamera: '+err.message;
+  }
+  toast(msg);
+  stopScan();
 }
-function scanLocCode(){scanMode='location';pendingLoc=null;document.getElementById('scanWrap').classList.add('on');
-  var sr=document.getElementById('scanResult');sr.classList.remove('hidden');sr.textContent='🏷 Lagerplatz scannen...';scannerOn=true;
-  try{html5qr=new Html5Qrcode('scanReader',false);html5qr.start({facingMode:'environment'},{fps:10,qrbox:250},onScan,function(){})}
-  catch(e){toast('❌ Kamera');stopScan()}
+
+/** Start the scanner with proper config for iOS Safari */
+function _startScanner(cbOk){
+  document.getElementById('scanWrap').classList.add('on');
+  document.getElementById('scanResult').classList.add('hidden');
+  var el=document.getElementById('scanReader');
+  el.innerHTML=''; // ensure clean slate before each start
+  try{
+    html5qr=new Html5Qrcode('scanReader',false);
+    html5qr.start(
+      {facingMode:'environment'},
+      {
+        fps:10,
+        qrbox:250,
+        disableAudioFallback:true,
+        aspectRatio:16/9
+      },
+      function(text){
+        scannerOn=false;
+        cbOk(text);
+      },
+      function(err){
+        scannerError(err);
+      }
+    ).catch(function(err){
+      scannerError(err);
+    });
+  }catch(e){scannerError(e)}
 }
-function onScan(text){
-  scannerOn=false;stopScan();
-  if(pendingLoc){assignToLoc(text);return}
-  if(scanMode==='location'){
-    var loc=locs.find(function(l){return l.code===text.toUpperCase()});
-    if(loc){var sr=document.getElementById('scanResult');sr.textContent='📍 '+loc.name;viewLoc(loc)}
-    else{var sr=document.getElementById('scanResult');sr.textContent='❌ Kein Code: '+text;toast('Nicht gefunden')}
-  } else {
+
+function scanProd(){scanMode='product';pendingLoc=null;
+  _startScanner(function(text){
+    scannerOn=false;
+    if(pendingLoc){assignToLoc(text);return}
     document.getElementById('scanResult').classList.remove('hidden');
     document.getElementById('scanResult').textContent='📷 Barcode: '+text;
     handleScan(text);
-  }
+    stopScan();
+    toast('📷 Kamera gestoppt');
+  });
+  toast('📷 Kamera aktiv');
+}
+function scanLocCode(){scanMode='location';pendingLoc=null;
+  var sr=document.getElementById('scanResult');
+  sr.classList.remove('hidden');sr.textContent='🏷 Lagerplatz scannen...';
+  _startScanner(function(text){
+    scannerOn=false;
+    var loc=locs.find(function(l){return l.code===text.toUpperCase()});
+    if(loc){var sr=document.getElementById('scanResult');sr.textContent='📍 '+loc.name;viewLoc(loc)}
+    else{var sr=document.getElementById('scanResult');sr.textContent='❌ Kein Code: '+text;toast('Nicht gefunden')}
+    stopScan();
+    toast('📷 Kamera gestoppt');
+  });
 }
 async function handleScan(code){
   var local=products.find(function(p){return p.barcode===code});
   if(local){
-    if(confirm('"'+local.name+'" vorhanden. +1?\nAktuell: '+local.qty+' '+local.unit)){
+    if(confirm('"' + local.name + '" vorhanden. +1?\nAktuell: '+local.qty+' '+local.unit)){
       local.qty+=1;await dbPut('products',local);render();toast('✅ '+local.name+' +1');
       await dbPut('product_timeline',{id:uid(),prodId:local.id,type:'used',amount:-1,note:'+1 durch Scan',ts:new Date().toISOString()});
     }
@@ -611,17 +657,23 @@ async function handleScan(code){
 function scanFromModal(){
   toast('📷 Kamera startet...');
   scanMode='product';pendingLoc=null;
+  var el=document.getElementById('scanReader');
+  el.innerHTML='';
   try{
     var hq=new Html5Qrcode('scanReader',false);
-    hq.start({facingMode:'environment'},{fps:10,qrbox:250},function(text){
-      hq.stop().catch(function(){});hq=null;
-      document.getElementById('scanWrap').classList.remove('on');
-      document.getElementById('scanReader').innerHTML='';
-      handleScan(text);
-    },function(){}).catch(function(e){
-      toast('❌ '+e.message);
-      document.getElementById('scanWrap').classList.remove('on');
-      document.getElementById('scanReader').innerHTML='';
+    hq.start(
+      {facingMode:'environment'},
+      {fps:10,qrbox:250,disableAudioFallback:true,aspectRatio:16/9},
+      function(text){
+        hq.stop().then(function(){
+          document.getElementById('scanWrap').classList.remove('on');
+          el.innerHTML='';
+          handleScan(text);
+        }).catch(function(){});
+      },
+      function(err){toast('❌ '+err.message);document.getElementById('scanWrap').classList.remove('on');el.innerHTML=''}
+    ).catch(function(err){
+      scannerError(err);
     });
   }catch(e){toast('❌ Kamera nicht verfügbar')}
 }
@@ -641,8 +693,19 @@ async function assignToLoc(code){
   }pendingLoc=null;
 }
 function stopScan(){
-  if(html5qr&&scannerOn){html5qr.stop().catch(function(){});html5qr=null}scannerOn=false;
-  document.getElementById('scanWrap').classList.remove('on');document.getElementById('scanReader').innerHTML='';
+  scannerOn=false;
+  // Stop the scanner instance if it's running
+  if(html5qr){
+    var qrcodeRef=html5qr;
+    html5qr=null;
+    qrcodeRef.stop().catch(function(){});
+    qrcodeRef.clear().catch(function(){});
+  }
+  // Close overlay — do NOT destroy innerHTML of scanReader here.
+  // The overlay CSS (display:none) hides it, and innerHTML will be
+  // cleared on the NEXT start() call. This is critical for iOS Safari
+  // which may lose the video stream if the element is destroyed.
+  document.getElementById('scanWrap').classList.remove('on');
 }
 
 /* ═══ RECIPES ═══ */

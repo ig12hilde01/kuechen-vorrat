@@ -208,7 +208,7 @@ function dbClear(store){return new Promise(function(res,rej){var t=DB.transactio
 var PW='kueche2024',TAB='pantry',CF='all',RF='all';
 var scanMode='product',pendingLoc=null,importedRecipe=null,curTimelineProd=null;
 var cats=[],rooms=[],locs=[],products=[],recipes=[],shopping=[];
-var _auth=false;
+var _auth=false,dbReady=false;
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,7)}
 function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -239,38 +239,38 @@ async function initApp(){
   if(!DB){DB=await openDB()}
   try{
     cats=await dbGetAll('categories');
-  rooms=await dbGetAll('rooms');
-  locs=await dbGetAll('locations');
-  products=await dbGetAll('products');
-  recipes=await dbGetAll('recipes');
-  shopping=await dbGetAll('shopping');
-  if(!cats.length){
-    var defaults=[
-      {id:'c_obst',name:'Obst',emoji:'🍎',color:'#f44336'},
-      {id:'c_gemuese',name:'Gemüse',emoji:'🥕',color:'#8bc34a'},
-      {id:'c_nudeln',name:'Nudeln & Getreide',emoji:'🍝',color:'#e74c3c'},
-      {id:'c_reis',name:'Reis & Cerealien',emoji:'🍚',color:'#f39c12'},
-      {id:'c_konserven',name:'Konserven',emoji:'🥫',color:'#e67e22'},
-      {id:'c_oel_essig',name:'Öl & Essig',emoji:'🫒',color:'#2ecc71'},
-      {id:'c_saucen',name:'Saucen & Dressing',emoji:'🍶',color:'#3498db'},
-      {id:'c_gehwuerze',name:'Gewürze & Kräuter',emoji:'🧂',color:'#9b59b6'},
-      {id:'c_meel',name:'Mehl & Backen',emoji:'🌾',color:'#d4a574'},
-      {id:'c_suesses',name:'Süßes & Schokolade',emoji:'🍫',color:'#e91e63'},
-      {id:'c_getraenke',name:'Getränke',emoji:'🥤',color:'#00bcd4'},
-      {id:'c_kuehl',name:'Kühlregal & Milch',emoji:'🧊',color:'#64b5f6'},
-      {id:'c_frisch',name:'Frischkost & Brot',emoji:'🥗',color:'#4caf50'},
-      {id:'c_fleisch',name:'Fleisch & Wurst',emoji:'🥩',color:'#c0392b'},
-      {id:'c_kaes',name:'Käse',emoji:'🧀',color:'#ffc107'},
-      {id:'c_tiefkuehl',name:'Tiefkühler',emoji:'❄️',color:'#90caf9'},
-      {id:'c_haushalt',name:'Haushaltswaren',emoji:'🧹',color:'#78909c'},
-      {id:'c_waschmittel',name:'Waschmittel & Putz',emoji:'🧴',color:'#5c6bc0'},
-      {id:'c_hygiene',name:'Dusche & Hygiene',emoji:'🚿',color:'#ec407a'},
-      {id:'c_sonstiges',name:'Sonstiges',emoji:'📦',color:'#795548'}
-    ];
-    for(var i=0;i<defaults.length;i++)await dbPut('categories',defaults[i]);
-    cats=defaults;
-  }
-  go('pantry',document.querySelector('.tab'));
+    rooms=await dbGetAll('rooms');
+    locs=await dbGetAll('locations');
+    products=await dbGetAll('products');
+    recipes=await dbGetAll('recipes');
+    shopping=await dbGetAll('shopping');
+    if(!cats.length){
+      var defaults=[
+        {id:'c_obst',name:'Obst',emoji:'🍎',color:'#f44336'},
+        {id:'c_gemuese',name:'Gemüse',emoji:'🥕',color:'#8bc34a'},
+        {id:'c_nudeln',name:'Nudeln & Getreide',emoji:'🍝',color:'#e74c3c'},
+        {id:'c_reis',name:'Reis & Cerealien',emoji:'🍚',color:'#f39c12'},
+        {id:'c_konserven',name:'Konserven',emoji:'🥫',color:'#e67e22'},
+        {id:'c_oel_essig',name:'Öl & Essig',emoji:'🫒',color:'#2ecc71'},
+        {id:'c_saucen',name:'Saucen & Dressing',emoji:'🍶',color:'#3498db'},
+        {id:'c_gehwuerze',name:'Gewürze & Kräuter',emoji:'🧂',color:'#9b59b6'},
+        {id:'c_meel',name:'Mehl & Backen',emoji:'🌾',color:'#d4a574'},
+        {id:'c_suesses',name:'Süßes & Schokolade',emoji:'🍫',color:'#e91e63'},
+        {id:'c_getraenke',name:'Getränke',emoji:'🥤',color:'#00bcd4'},
+        {id:'c_kuehl',name:'Kühlregal & Milch',emoji:'🧊',color:'#64b5f6'},
+        {id:'c_frisch',name:'Frischkost & Brot',emoji:'🥗',color:'#4caf50'},
+        {id:'c_fleisch',name:'Fleisch & Wurst',emoji:'🥩',color:'#c0392b'},
+        {id:'c_kaes',name:'Käse',emoji:'🧀',color:'#ffc107'},
+        {id:'c_tiefkuehl',name:'Tiefkühler',emoji:'❄️',color:'#90caf9'},
+        {id:'c_haushalt',name:'Haushaltswaren',emoji:'🧹',color:'#78909c'},
+        {id:'c_waschmittel',name:'Waschmittel & Putz',emoji:'🧴',color:'#5c6bc0'},
+        {id:'c_hygiene',name:'Dusche & Hygiene',emoji:'🚿',color:'#ec407a'},
+        {id:'c_sonstiges',name:'Sonstiges',emoji:'📦',color:'#795548'}
+      ];
+      for(var i=0;i<defaults.length;i++)await dbPut('categories',defaults[i]);
+      cats=defaults;
+    }
+    go('pantry',document.querySelector('.tab'));
   }catch(e){console.error('initApp error:',e)}
 }
 

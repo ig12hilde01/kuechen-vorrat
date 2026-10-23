@@ -40,11 +40,16 @@ select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
 .tl-item.bought::before{background:var(--amber)}
 .tl-item.expired::before{background:var(--red)}
 .tl-item.created::before{background:#3498db}
-.scan-wrap{position:fixed;inset:0;background:#000;z-index:200;display:none;flex-direction:column}
-.scan-wrap.on{display:flex}
-.scan-wrap video{width:100%;flex:1;object-fit:cover}
-.scan-bar{display:flex;gap:10px;padding:16px;background:#1a1a2e;justify-content:center}
-.scan-bar button{background:#333;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:.9rem;cursor:pointer}
+.scanner-overlay{position:fixed;inset:0;background:#000;z-index:9999;display:none;flex-direction:column;-webkit-overflow-scrolling:touch}
+.scanner-overlay.on{display:flex}
+#scanReader{flex:1;position:relative}
+#scanReader video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-reticle{position:absolute;top:50%;left:50%;width:250px;height:250px;transform:translate(-50%,-50%);border:3px solid rgba(108,99,255,.8);border-radius:8px;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.35)}
+.scan-reticle::after{content:'Barcode hier ausrichten';display:block;text-align:center;font-size:.65rem;color:rgba(255,255,255,.6);margin-top:8px;padding-top:8px;border-top:1px solid rgba(108,99,255,.4)}
+.scan-bar{display:flex;gap:10px;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));background:#1a1a2e;justify-content:center;flex-shrink:0}
+.scan-bar button{background:#333;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:.9rem;cursor:pointer;-webkit-appearance:none;font-weight:600}
+.scan-bar button.scan-btn-toggle{background:#6c63ff;color:#fff}
+.scan-bar button.scan-btn-cancel{background:var(--red);color:#fff}
 .qr-wrap{text-align:center;padding:16px}.qr-wrap canvas{border:3px solid var(--card);border-radius:8px}
 </style>
 </head>
@@ -158,10 +163,14 @@ select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
 <div class="mbtns"><button class="btn btn-s" onclick="closeM('timelineModal')">Schließen</button></div>
 </div></div>
 
-<div class="scan-wrap" id="scanWrap">
-<div id="scanReader" style="flex:1"></div>
-<div id="scanResult" class="hidden" style="padding:10px 16px;background:#16213e;text-align:center;font-size:.8rem"></div>
-<div class="scan-bar"><button onclick="stopScan()">⏹ Stopp</button></div>
+<div class="scanner-overlay" id="scanWrap">
+  <div id="scanReader">
+    <div id="scanReticle" class="scan-reticle"></div>
+  </div>
+  <div class="scan-bar">
+    <button id="scanBtn" class="scan-btn-toggle" onclick="toggleCamera()" style="display:none">⚡ Umschalten</button>
+    <button class="scan-btn-cancel" onclick="cancelScan()">✖ Abbrechen</button>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
@@ -538,174 +547,286 @@ function scannerError(err){
   stopScan();
 }
 
-/** Start the scanner with proper config for iOS Safari */
-function _startScanner(cbOk){
-  document.getElementById('scanWrap').classList.add('on');
-  document.getElementById('scanResult').classList.add('hidden');
-  var el=document.getElementById('scanReader');
-  el.innerHTML=''; // ensure clean slate before each start
-  try{
-    html5qr=new Html5Qrcode('scanReader',false);
-    html5qr.start(
-      {facingMode:'environment'},
-      {
-        fps:10,
-        qrbox:250,
-        disableAudioFallback:true,
-        aspectRatio:16/9
-      },
-      function(text){
-        scannerOn=false;
-        cbOk(text);
-      },
-      function(err){
-        scannerError(err);
-      }
-    ).catch(function(err){
-      scannerError(err);
-    });
-  }catch(e){scannerError(e)}
-}
+/** Show the camera overlay before starting — gives the browser time to
+ *  compute layout so Html5Qrcode can measure the container.
+ *  Required for iOS Safari. */
+function showScannerOverlay(cbOk){
+  var wrap = document.getElementById('scanWrap');
+  var reticle = document.getElementById('scanReticle');
+  wrap.classList.add('on');
 
-function scanProd(){scanMode='product';pendingLoc=null;
-  _startScanner(function(text){
-    scannerOn=false;
-    if(pendingLoc){assignToLoc(text);return}
-    document.getElementById('scanResult').classList.remove('hidden');
-    document.getElementById('scanResult').textContent='📷 Barcode: '+text;
-    handleScan(text);
-    stopScan();
-    toast('📷 Kamera gestoppt');
-  });
-  toast('📷 Kamera aktiv');
-}
-function scanLocCode(){scanMode='location';pendingLoc=null;
-  var sr=document.getElementById('scanResult');
-  sr.classList.remove('hidden');sr.textContent='🏷 Lagerplatz scannen...';
-  _startScanner(function(text){
-    scannerOn=false;
-    var loc=locs.find(function(l){return l.code===text.toUpperCase()});
-    if(loc){var sr=document.getElementById('scanResult');sr.textContent='📍 '+loc.name;viewLoc(loc)}
-    else{var sr=document.getElementById('scanResult');sr.textContent='❌ Kein Code: '+text;toast('Nicht gefunden')}
-    stopScan();
-    toast('📷 Kamera gestoppt');
-  });
-}
-async function handleScan(code){
-  var local=products.find(function(p){return p.barcode===code});
-  if(local){
-    if(confirm('"' + local.name + '" vorhanden. +1?\nAktuell: '+local.qty+' '+local.unit)){
-      local.qty+=1;await dbPut('products',local);render();toast('✅ '+local.name+' +1');
-      await dbPut('product_timeline',{id:uid(),prodId:local.id,type:'used',amount:-1,note:'+1 durch Scan',ts:new Date().toISOString()});
-    }
-    return;
-  }
-  toast('🔍 Online-Suche...');
-  try{
-    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(8000)});
-    var j=await r.json();
-    if(j.status===1&&j.product){
-      var p=j.product;
-      var name=p.product_name||'';
-      var brand=p.brands||'';
-      var pkg=p.quantity||'';
-      var cat=mapCat(p.categories_tags||[]);
+  // Reticle is always there in DOM; make it visible
+  if(reticle) reticle.style.display = 'block';
 
-      // Wenn Modal offen: fülle es direkt
-      if(document.getElementById('mProd').classList.contains('on')){
-        document.getElementById('fPBarcode').value=code;
-        if(name)document.getElementById('fPName').value=name;
-        if(brand)document.getElementById('fPBrand').value=brand;
-        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
-        var sel=document.getElementById('fPCat');
-        for(var i=0;i<sel.options.length;i++){
-          if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}
+  // Give the browser one frame to paint the overlay
+  setTimeout(function(){
+    try{
+      html5qr = new Html5Qrcode('scanReader', false);
+      html5qr.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: 250,
+          disableAudioFallback: true,
+          aspectRatio: 16 / 9
+        },
+        function(text){
+          scannerOn = false;
+          cbOk(text);
+        },
+        function(err){
+          scannerError(err);
         }
-        document.getElementById('lookupInfo').classList.remove('hidden');
-        document.getElementById('lookupInfo').innerHTML=
-          '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
-          (brand?'<br>🏭 '+esc(brand):'')+
-          (pkg?'<br>📦 '+esc(extPkg(pkg)||pkg):'')+
-          (p.countries?'<br>🌍 '+esc(p.countries):'')
-        ;
-        toast('✅ Produkt gefunden!');
-      } else {
-        // Scanner direkt aus Vorrat-Tab
-        document.getElementById('fPBarcode').value=code;
-        document.getElementById('fPName').value=name||'';
-        if(brand)document.getElementById('fPBrand').value=brand;
-        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
-        var sel=document.getElementById('fPCat');
-        for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
-        openM('mProd');
-      }
-    } else {
-      document.getElementById('fPBarcode').value=code;
-      if(document.getElementById('mProd').classList.contains('on')){
-        document.getElementById('lookupInfo').classList.remove('hidden');
-        document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Nicht in OpenFoodFacts</span>';
-      } else {openM('mProd')}
-    }
-  }catch(e){
-    document.getElementById('fPBarcode').value=code;
-    if(document.getElementById('mProd').classList.contains('on')){
-      document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Netzfehler</span>';
-    } else {openM('mProd')}
-  }
+      ).catch(function(err){
+        scannerError(err);
+      });
+    } catch(e){ scannerError(e); }
+  }, 100);
 }
+
+/** Hide the overlay and stop the camera cleanly */
+function hideScannerOverlay(){
+  if(html5qr){
+    html5qr.stop().catch(function(){});
+    html5qr = null;
+  }
+  document.getElementById('scanWrap').classList.remove('on');
+  var ret = document.getElementById('scanReticle');
+  if(ret) ret.style.display = 'none';
+}
+
+/** Human-readable error → toast + close overlay */
+function scannerError(err){
+  scannerOn = false;
+  var msg = 'Kamera-Fehler';
+  if(err && err.message){
+    var m = err.message.toLowerCase();
+    if(m.indexOf('permission')>=0 || m.indexOf('denied')>=0){
+      msg = 'Kamera-Zugriff verweigert. Bitte erlaube den Zugriff in den Safari-Einstellungen.';
+    } else if(m.indexOf('notfound')>=0 || m.indexOf('not found')>=0){
+      msg = 'Keine Kamera auf diesem Gerät gefunden.';
+    } else if(m.indexOf('inactive')>=0 || m.indexOf('notstarted')>=0){
+      msg = 'Kamera noch nicht gestartet. Bitte Tippen Sie erneut auf Scannen.';
+    } else if(m.indexOf('nospace')>=0){
+      msg = 'Unzureichender Speicher für Kamera.';
+    } else {
+      msg = 'Kamera: '+err.message;
+    }
+  } else if(err){
+    msg = String(err);
+  }
+  toast(msg);
+  hideScannerOverlay();
+}
+
+/** Switch between front and back camera (iOS Safari supported) */
+function toggleCamera(){
+  if(!html5qr) return;
+  var current = html5qr.config ? html5qr.config.facingMode : 'environment';
+  var next = (current === 'environment') ? 'user' : 'environment';
+
+  html5qr.stop().then(function(){
+    html5qr.start(
+      { facingMode: next },
+      html5qr.config || { fps:10, qrbox:250, disableAudioFallback:true, aspectRatio:16/9 },
+      function(text){
+        scannerOn = false;
+        hideScannerOverlay();
+        handleScan(text);
+      },
+      function(err){ scannerError(err); }
+    ).catch(function(err){ scannerError(err); });
+  }).catch(function(){
+    toast('Kamera konnte nicht umgeschaltet werden');
+  });
+}
+
+/** Cancel scanning and close the overlay */
+function cancelScan(){
+  scannerOn = false;
+  pendingLoc = null;
+  hideScannerOverlay();
+  toast('Scanner abgebrochen');
+}
+
+/* === SCANNER: scanProd — barcode → product modal === */
+function scanProd(){
+  scanMode = 'product';
+  pendingLoc = null;
+  toast('📷 Kamera startet...');
+
+  showScannerOverlay(function(text){
+    if(pendingLoc){
+      assignToLoc(text);
+    } else {
+      handleScan(text);
+    }
+  });
+}
+
+/* === SCANNER: scanLocCode — scan location code === */
+function scanLocCode(){
+  scanMode = 'location';
+  pendingLoc = null;
+  toast('🏷 Lagerplatz scannen...');
+
+  showScannerOverlay(function(text){
+    var loc = locs.find(function(l){ return l.code === text.toUpperCase(); });
+    if(loc){
+      toast('📍 '+loc.name);
+      viewLoc(loc);
+    } else {
+      toast('❌ Kein Code: '+text);
+    }
+    hideScannerOverlay();
+  });
+}
+
+/* === SCANNER: scanFromModal — button inside product modal === */
 function scanFromModal(){
   toast('📷 Kamera startet...');
-  scanMode='product';pendingLoc=null;
-  var el=document.getElementById('scanReader');
-  el.innerHTML='';
-  try{
-    var hq=new Html5Qrcode('scanReader',false);
-    hq.start(
-      {facingMode:'environment'},
-      {fps:10,qrbox:250,disableAudioFallback:true,aspectRatio:16/9},
-      function(text){
-        hq.stop().then(function(){
-          document.getElementById('scanWrap').classList.remove('on');
-          el.innerHTML='';
-          handleScan(text);
-        }).catch(function(){});
-      },
-      function(err){toast('❌ '+err.message);document.getElementById('scanWrap').classList.remove('on');el.innerHTML=''}
-    ).catch(function(err){
-      scannerError(err);
+  scanMode = 'product';
+  pendingLoc = null;
+
+  showScannerOverlay(function(text){
+    handleScan(text);
+  });
+}
+
+/* === SCANNER: handleScan — barcode text → local DB + OpenFoodFacts === */
+async function handleScan(code){
+  hideScannerOverlay();
+
+  /* 1. Check local IndexedDB first */
+  var local = products.find(function(p){ return p.barcode === code; });
+  if(local){
+    showCf('"'+local.name+'" vorhanden. +1?',function(){
+      local.qty += 1;
+      dbPut('products',local).then(function(){
+        render();
+        toast('✅ '+local.name+' +1');
+        dbPut('product_timeline',{
+          id: uid(),
+          prodId: local.id,
+          type: 'used',
+          amount: -1,
+          note: '+1 durch Scan',
+          ts: new Date().toISOString()
+        });
+      });
     });
-  }catch(e){toast('❌ Kamera nicht verfügbar')}
-}
-async function assignToLoc(code){
-  var local=products.find(function(p){return p.barcode===code});
-  if(local){local.locId=pendingLoc;await dbPut('products',local);render();var loc=locs.find(function(l){return l.id===pendingLoc});toast('✅ '+local.name+' → '+loc.name)}
-  else{var pl=pendingLoc;
-    document.getElementById('fPBarcode').value=code;
-    document.getElementById('mProdSave').onclick=function(){
-      var nm=document.getElementById('fPName').value.trim();if(!nm){toast('Name fehlt!');return}
-      var obj={id:uid(),name:nm,barcode:code,cat:document.getElementById('fPCat').value,qty:parseInt(document.getElementById('fPQty').value)||1,
-        unit:document.getElementById('fPUnit').value,pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,
-        locId:pl,brand:document.getElementById('fPBrand').value.trim(),note:'Scan+Zuweisung',created:today()};
-      dbPut('products',obj).then(function(){closeM('mProd');render();var loc=locs.find(function(l){return l.id===pl});toast('✅ → '+loc.name)});
-      pendingLoc=null;
-    };openM('mProd');
-  }pendingLoc=null;
-}
-function stopScan(){
-  scannerOn=false;
-  // Stop the scanner instance if it's running
-  if(html5qr){
-    var qrcodeRef=html5qr;
-    html5qr=null;
-    qrcodeRef.stop().catch(function(){});
-    qrcodeRef.clear().catch(function(){});
+    return;
   }
-  // Close overlay — do NOT destroy innerHTML of scanReader here.
-  // The overlay CSS (display:none) hides it, and innerHTML will be
-  // cleared on the NEXT start() call. This is critical for iOS Safari
-  // which may lose the video stream if the element is destroyed.
-  document.getElementById('scanWrap').classList.remove('on');
+
+  /* 2. Lookup in OpenFoodFacts */
+  toast('🔍 Online-Suche...');
+  try{
+    var r = await fetch(
+      'https://world.openfoodfacts.org/api/v2/product/'+code+'.json',
+      { signal: AbortSignal.timeout(8000) }
+    );
+    var j = await r.json();
+    var modalOpen = document.getElementById('mProd').classList.contains('on');
+
+    if(j.status === 1 && j.product){
+      var p = j.product;
+      var name = p.product_name || '';
+      var brand = p.brands || '';
+      var pkg = p.quantity || '';
+      var cat = mapCat(p.categories_tags || []);
+
+      document.getElementById('fPBarcode').value = code;
+      if(name) document.getElementById('fPName').value = name;
+      if(brand) document.getElementById('fPBrand').value = brand;
+      if(pkg) document.getElementById('fPPkg').value = extPkg(pkg) || pkg;
+
+      /* Map category */
+      var sel = document.getElementById('fPCat');
+      for(var i = 0; i < sel.options.length; i++){
+        if(sel.options[i].textContent.includes(cat)){
+          sel.selectedIndex = i;
+          break;
+        }
+      }
+
+      document.getElementById('lookupInfo').classList.remove('hidden');
+      document.getElementById('lookupInfo').innerHTML =
+        '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
+        (brand?'<br>🏭 '+esc(brand):'')+
+        (pkg?'<br>📦 '+esc(extPkg(pkg)||pkg):'')+
+        (p.countries?'<br>🌍 '+esc(p.countries):'');
+      toast('✅ Produkt gefunden!');
+
+      if(!modalOpen) openM('mProd');
+
+    } else {
+      /* Not found in OpenFoodFacts — still open modal with barcode */
+      document.getElementById('fPBarcode').value = code;
+      if(modalOpen){
+        document.getElementById('lookupInfo').classList.remove('hidden');
+        document.getElementById('lookupInfo').innerHTML =
+          '<span style="color:var(--red)">❌ Nicht in OpenFoodFacts</span>';
+      } else {
+        openM('mProd');
+      }
+    }
+  } catch(e){
+    /* Network / unknown error — still open modal with barcode */
+    document.getElementById('fPBarcode').value = code;
+    if(document.getElementById('mProd').classList.contains('on')){
+      document.getElementById('lookupInfo').classList.remove('hidden');
+      document.getElementById('lookupInfo').innerHTML =
+        '<span style="color:var(--red)">❌ Netzfehler</span>';
+    } else {
+      openM('mProd');
+    }
+  }
+}
+
+/* === SCANNER: assignToLoc — assign scanned product to pending location === */
+async function assignToLoc(code){
+  hideScannerOverlay();
+  var local = products.find(function(p){ return p.barcode === code; });
+  if(local){
+    local.locId = pendingLoc;
+    await dbPut('products',local);
+    render();
+    var loc = locs.find(function(l){ return l.id === pendingLoc; });
+    toast('✅ '+local.name+' → '+loc.name);
+  } else {
+    var pl = pendingLoc;
+    document.getElementById('fPBarcode').value = code;
+    document.getElementById('mProdSave').onclick = function(){
+      var nm = document.getElementById('fPName').value.trim();
+      if(!nm){ toast('Name fehlt!'); return; }
+      var obj = {
+        id: uid(), name: nm, barcode: code,
+        cat: document.getElementById('fPCat').value,
+        qty: parseInt(document.getElementById('fPQty').value)||1,
+        unit: document.getElementById('fPUnit').value,
+        pkg: document.getElementById('fPPkg').value.trim(),
+        exp: document.getElementById('fPExp').value,
+        locId: pl, brand: document.getElementById('fPBrand').value.trim(),
+        note: 'Scan+Zuweisung', created: today()
+      };
+      dbPut('products',obj).then(function(){
+        closeM('mProd');
+        render();
+        var loc = locs.find(function(l){ return l.id === pl; });
+        toast('✅ → '+loc.name);
+      });
+      pendingLoc = null;
+    };
+    openM('mProd');
+  }
+  pendingLoc = null;
+}
+
+/* === SCANNER: stopScan — stop camera and close overlay === */
+function stopScan(){
+  scannerOn = false;
+  hideScannerOverlay();
+  toast('📷 Kamera gestoppt');
 }
 
 /* ═══ RECIPES ═══ */

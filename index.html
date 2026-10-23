@@ -530,78 +530,61 @@ function assignLoc(id){
 }
 
 /* ═══ SCANNER ═══ */
-var html5qr=null,scannerOn=false;
+var html5qr=null,scannerOn=false,currentFacing='environment';
 
-/** Human-readable error → toast + close overlay */
-function scannerError(err){
-  var msg='Kamera-Fehler';
-  if(err&&err.message){
-    var m=err.message.toLowerCase();
-    if(m.indexOf('permission')>=0||m.indexOf('denied')>=0) msg='Kamera-Zugriff verweigert — bitte erlauben Sie den Kamerazugriff in den Safari-Einstellungen.';
-    else if(m.indexOf('notfound')>=0||m.indexOf('not found')>=0) msg='Keine Kamera an diesem Gerät gefunden.';
-    else if(m.indexOf('inactive')>=0||m.indexOf('notstarted')>=0) msg='Kamera noch nicht gestartet. Bitte Tippen Sie erneut auf Scannen.';
-    else if(m.indexOf('nospace')>=0) msg='Unzureichender Speicher für Kamera.';
-    else msg='Kamera: '+err.message;
-  }
-  toast(msg);
-  stopScan();
-}
-
-/** Show the camera overlay before starting — gives the browser time to
- *  compute layout so Html5Qrcode can measure the container.
- *  Required for iOS Safari. */
+/** Show the camera overlay — gives the browser time to paint */
 function showScannerOverlay(cbOk){
+  scannerOn = true;
   var wrap = document.getElementById('scanWrap');
   var reticle = document.getElementById('scanReticle');
   wrap.classList.add('on');
   wrap.style.display = 'flex';
-
   if(reticle) reticle.style.display = 'block';
 
-  // Wait for overlay to be fully painted
-  requestAnimationFrame(function(){
-    requestAnimationFrame(function(){
-      try{
-        html5qr = new Html5Qrcode('scanReader', { verbose: false });
-        html5qr.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: false,
-            cameraDisplayWidth: 480,
-            cameraDisplayHeight: 480,
-            videoFrameWidth: 480,
-            videoFrameHeight: 480
-          },
-          function(decodedText){
-            scannerOn = false;
-            hideScannerOverlay();
-            cbOk(decodedText);
-          },
-          function(errorMessage){
-            // This is called continuously while scanning — do NOT error on this
-          }
-        ).catch(function(err){
-          scannerError(err);
-        });
-        // Show toggle camera button after camera starts
-        setTimeout(function(){
-          var btn = document.getElementById('scanBtn');
-          if(btn) btn.style.display = 'inline-block';
-        }, 800);
-      } catch(e){ scannerError(e); }
-    });
-  });
+  // Wait for overlay to be fully painted before starting camera
+  setTimeout(function(){
+    try{
+      html5qr = new Html5Qrcode('scanReader', false);
+      html5qr.start(
+        { facingMode: currentFacing },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          cameraDisplayWidth: 480,
+          cameraDisplayHeight: 480
+        },
+        function(decodedText){
+          if(!scannerOn) return;
+          scannerOn = false;
+          hideScannerOverlay();
+          cbOk(decodedText);
+        },
+        function(errorMessage){
+          // Scan failure callback — called continuously, IGNORE
+        }
+      ).catch(function(err){
+        scannerError(err);
+      });
+      // Show toggle button after camera starts
+      setTimeout(function(){
+        var btn = document.getElementById('scanBtn');
+        if(btn) btn.style.display = 'inline-flex';
+      }, 600);
+    } catch(e){ scannerError(e); }
+  }, 150);
 }
 
-/** Hide the overlay and stop the camera cleanly */
+/** Hide overlay and stop camera cleanly */
 function hideScannerOverlay(){
+  scannerOn = false;
   if(html5qr){
-    html5qr.stop().catch(function(){});
-    html5qr = null;
+    html5qr.stop().then(function(){
+      html5qr.clear();
+      html5qr = null;
+    }).catch(function(){});
   }
   document.getElementById('scanWrap').classList.remove('on');
-  // Hide toggle camera button
+  document.getElementById('scanWrap').style.display = 'none';
   var btn = document.getElementById('scanBtn');
   if(btn) btn.style.display = 'none';
   var ret = document.getElementById('scanReticle');
@@ -619,42 +602,44 @@ function scannerError(err){
     } else if(m.indexOf('notfound')>=0 || m.indexOf('not found')>=0){
       msg = 'Keine Kamera auf diesem Gerät gefunden.';
     } else if(m.indexOf('inactive')>=0 || m.indexOf('notstarted')>=0){
-      msg = 'Kamera noch nicht gestartet. Bitte Tippen Sie erneut auf Scannen.';
-    } else if(m.indexOf('nospace')>=0){
-      msg = 'Unzureichender Speicher für Kamera.';
+      msg = 'Kamera konnte nicht gestartet werden.';
     } else {
       msg = 'Kamera: '+err.message;
     }
-  } else if(err){
-    msg = String(err);
   }
   toast(msg);
   hideScannerOverlay();
 }
 
-/** Switch between front and back camera (iOS Safari supported) */
+/** Switch front/back camera — uses global state, not library internals */
 function toggleCamera(){
-  if(!html5qr) return;
-  var current = html5qr.config ? html5qr.config.facingMode : 'environment';
-  var next = (current === 'environment') ? 'user' : 'environment';
+  if(!html5qr || !scannerOn) { toast('Kamera nicht aktiv'); return; }
+  currentFacing = (currentFacing === 'environment') ? 'user' : 'environment';
+  toast('📷 Wechsle Kamera...');
 
   html5qr.stop().then(function(){
-    html5qr.start(
-      { facingMode: next },
-      html5qr.config || { fps:10, qrbox:250, disableAudioFallback:true, aspectRatio:16/9 },
-      function(text){
+    return html5qr.start(
+      { facingMode: currentFacing },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        cameraDisplayWidth: 480,
+        cameraDisplayHeight: 480
+      },
+      function(decodedText){
+        if(!scannerOn) return;
         scannerOn = false;
         hideScannerOverlay();
-        handleScan(text);
+        handleScan(decodedText);
       },
-      function(err){ scannerError(err); }
-    ).catch(function(err){ scannerError(err); });
-  }).catch(function(){
-    toast('Kamera konnte nicht umgeschaltet werden');
+      function(){ /* ignore scan errors */ }
+    );
+  }).catch(function(err){
+    scannerError(err);
   });
 }
 
-/** Cancel scanning and close the overlay */
+/** Cancel scanning and close overlay */
 function cancelScan(){
   scannerOn = false;
   pendingLoc = null;
@@ -666,8 +651,8 @@ function cancelScan(){
 function scanProd(){
   scanMode = 'product';
   pendingLoc = null;
+  currentFacing = 'environment';
   toast('📷 Kamera startet...');
-
   showScannerOverlay(function(text){
     if(pendingLoc){
       assignToLoc(text);
@@ -681,8 +666,8 @@ function scanProd(){
 function scanLocCode(){
   scanMode = 'location';
   pendingLoc = null;
+  currentFacing = 'environment';
   toast('🏷 Lagerplatz scannen...');
-
   showScannerOverlay(function(text){
     var loc = locs.find(function(l){ return l.code === text.toUpperCase(); });
     if(loc){
@@ -691,16 +676,15 @@ function scanLocCode(){
     } else {
       toast('❌ Kein Code: '+text);
     }
-    hideScannerOverlay();
   });
 }
 
 /* === SCANNER: scanFromModal — button inside product modal === */
 function scanFromModal(){
-  toast('📷 Kamera startet...');
   scanMode = 'product';
   pendingLoc = null;
-
+  currentFacing = 'environment';
+  toast('📷 Kamera startet...');
   showScannerOverlay(function(text){
     handleScan(text);
   });
@@ -708,139 +692,79 @@ function scanFromModal(){
 
 /* === SCANNER: handleScan — barcode text → local DB + OpenFoodFacts === */
 async function handleScan(code){
-  hideScannerOverlay();
-
   /* 1. Check local IndexedDB first */
   var local = products.find(function(p){ return p.barcode === code; });
   if(local){
-    showCf('"'+local.name+'" vorhanden. +1?',function(){
-      local.qty += 1;
-      dbPut('products',local).then(function(){
-        render();
-        toast('✅ '+local.name+' +1');
-        dbPut('product_timeline',{
-          id: uid(),
-          prodId: local.id,
-          type: 'used',
-          amount: -1,
-          note: '+1 durch Scan',
-          ts: new Date().toISOString()
-        });
-      });
-    });
+    if(confirm('"'+local.name+'" vorhanden. +1?\nAktuell: '+local.qty+' '+local.unit)){
+      local.qty+=1;await dbPut('products',local);render();toast('✅ '+local.name+' +1');
+      await dbPut('product_timeline',{id:uid(),prodId:local.id,type:'used',amount:-1,note:'+1 durch Scan',ts:new Date().toISOString()});
+    }
     return;
   }
 
-  /* 2. Lookup in OpenFoodFacts */
-  toast('🔍 Online-Suche...');
+  /* 2. Look up OpenFoodFacts */
+  toast('🔍 Suche Produkt...');
   try{
-    var r = await fetch(
-      'https://world.openfoodfacts.org/api/v2/product/'+code+'.json',
-      { signal: AbortSignal.timeout(8000) }
-    );
-    var j = await r.json();
-    var modalOpen = document.getElementById('mProd').classList.contains('on');
+    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(8000)});
+    var j=await r.json();
+    if(j.status===1&&j.product){
+      var p=j.product;
+      var name=p.product_name||'';
+      var brand=p.brands||'';
+      var pkg=p.quantity||'';
+      var cat=mapCat(p.categories_tags||[]);
 
-    if(j.status === 1 && j.product){
-      var p = j.product;
-      var name = p.product_name || '';
-      var brand = p.brands || '';
-      var pkg = p.quantity || '';
-      var cat = mapCat(p.categories_tags || []);
-
-      document.getElementById('fPBarcode').value = code;
-      if(name) document.getElementById('fPName').value = name;
-      if(brand) document.getElementById('fPBrand').value = brand;
-      if(pkg) document.getElementById('fPPkg').value = extPkg(pkg) || pkg;
-
-      /* Map category */
-      var sel = document.getElementById('fPCat');
-      for(var i = 0; i < sel.options.length; i++){
-        if(sel.options[i].textContent.includes(cat)){
-          sel.selectedIndex = i;
-          break;
+      // If modal already open: fill it in place
+      if(document.getElementById('mProd').classList.contains('on')){
+        document.getElementById('fPBarcode').value=code;
+        if(name)document.getElementById('fPName').value=name;
+        if(brand)document.getElementById('fPBrand').value=brand;
+        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var sel=document.getElementById('fPCat');
+        for(var i=0;i<sel.options.length;i++){
+          if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}
         }
-      }
-
-      document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML =
-        '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
-        (brand?'<br>🏭 '+esc(brand):'')+
-        (pkg?'<br>📦 '+esc(extPkg(pkg)||pkg):'')+
-        (p.countries?'<br>🌍 '+esc(p.countries):'');
-      toast('✅ Produkt gefunden!');
-
-      if(!modalOpen) openM('mProd');
-
-    } else {
-      /* Not found in OpenFoodFacts — still open modal with barcode */
-      document.getElementById('fPBarcode').value = code;
-      if(modalOpen){
         document.getElementById('lookupInfo').classList.remove('hidden');
-        document.getElementById('lookupInfo').innerHTML =
-          '<span style="color:var(--red)">❌ Nicht in OpenFoodFacts</span>';
+        document.getElementById('lookupInfo').innerHTML=
+          '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
+          (brand?'<br>🏭 '+esc(brand):'')+
+          (pkg?'<br>📦 '+esc(extPkg(pkg)||pkg):'')+
+          (p.countries?'<br>🌍 '+esc(p.countries):'');
+        toast('✅ Produkt gefunden!');
+      } else {
+        // Open modal with data
+        document.getElementById('fPBarcode').value=code;
+        document.getElementById('fPName').value=name||'';
+        if(brand)document.getElementById('fPBrand').value=brand;
+        if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var sel=document.getElementById('fPCat');
+        for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
+        openM('mProd');
+        toast('✅ Produkt gefunden!');
+      }
+    } else {
+      // Not found in API — still fill barcode
+      document.getElementById('fPBarcode').value=code;
+      if(document.getElementById('mProd').classList.contains('on')){
+        document.getElementById('lookupInfo').classList.remove('hidden');
+        document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Nicht in OpenFoodFacts</span><br><span style="color:var(--sub)">Bitte manuell erfassen.</span>';
       } else {
         openM('mProd');
       }
     }
-  } catch(e){
-    /* Network / unknown error — still open modal with barcode */
-    document.getElementById('fPBarcode').value = code;
+  }catch(e){
+    document.getElementById('fPBarcode').value=code;
     if(document.getElementById('mProd').classList.contains('on')){
       document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML =
-        '<span style="color:var(--red)">❌ Netzfehler</span>';
+      document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Netzfehler</span><br><span style="color:var(--sub)">Bitte manuell erfassen.</span>';
     } else {
       openM('mProd');
     }
+    toast('❌ '+e.message);
   }
 }
 
-/* === SCANNER: assignToLoc — assign scanned product to pending location === */
-async function assignToLoc(code){
-  hideScannerOverlay();
-  var local = products.find(function(p){ return p.barcode === code; });
-  if(local){
-    local.locId = pendingLoc;
-    await dbPut('products',local);
-    render();
-    var loc = locs.find(function(l){ return l.id === pendingLoc; });
-    toast('✅ '+local.name+' → '+loc.name);
-  } else {
-    var pl = pendingLoc;
-    document.getElementById('fPBarcode').value = code;
-    document.getElementById('mProdSave').onclick = function(){
-      var nm = document.getElementById('fPName').value.trim();
-      if(!nm){ toast('Name fehlt!'); return; }
-      var obj = {
-        id: uid(), name: nm, barcode: code,
-        cat: document.getElementById('fPCat').value,
-        qty: parseInt(document.getElementById('fPQty').value)||1,
-        unit: document.getElementById('fPUnit').value,
-        pkg: document.getElementById('fPPkg').value.trim(),
-        exp: document.getElementById('fPExp').value,
-        locId: pl, brand: document.getElementById('fPBrand').value.trim(),
-        note: 'Scan+Zuweisung', created: today()
-      };
-      dbPut('products',obj).then(function(){
-        closeM('mProd');
-        render();
-        var loc = locs.find(function(l){ return l.id === pl; });
-        toast('✅ → '+loc.name);
-      });
-      pendingLoc = null;
-    };
-    openM('mProd');
-  }
-  pendingLoc = null;
-}
-
-/* === SCANNER: stopScan — stop camera and close overlay === */
-function stopScan(){
-  scannerOn = false;
-  hideScannerOverlay();
-  toast('📷 Kamera gestoppt');
-}
+>
 
 /* ═══ RECIPES ═══ */
 var recipeIngrs=[];
@@ -1044,6 +968,8 @@ document.addEventListener('DOMContentLoaded',function(){
   // Expose for inline onclick handlers
   window._dbReady=function(){return dbInitDone};
 });
+</script>
+</body>
 </script>
 </body>
 </html>

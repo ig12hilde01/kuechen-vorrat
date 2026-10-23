@@ -1018,6 +1018,7 @@ async function clearDB(){showCf('ALLE Daten unwiderruflich löschen?',function()
 });}
 
 /* ═══ INIT ═══ */
+var dbReady=false;
 document.addEventListener('DOMContentLoaded',function(){
   // Setup login listener safely (DOM is ready)
   var pwInput=document.getElementById('pw');
@@ -1026,15 +1027,14 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 
   // Open DB in background (non-blocking)
-  var dbInitDone=false;
   openDB().then(function(){
-    dbInitDone=true;
+    dbReady=true;
   }).catch(function(e){
     console.warn('IndexedDB konnte nicht geöffnet werden:',e);
   });
 
   // Expose for inline onclick handlers
-  window._dbReady=function(){return dbInitDone};
+  window._dbReady=function(){return dbReady};
 });
 </script>
 </body>

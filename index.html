@@ -511,7 +511,7 @@ function showQR(id){
 function printQR(){
   var c=document.getElementById('qrContainer').innerHTML,t=document.getElementById('qrTitle').textContent;
   var w=window.open('','','width=300,height=400');if(!w){toast('Blockiert');return}
-  w.document.write('<!DOCTYPE html><html><head><title>'+esc(t)+'</title><style>body{font-family:sans-serif;text-align:center;padding:20px}@media print{body{margin:0}}</style></head><body><h1>'+esc(t)+'</h1>'+c+'</body></html>');
+  w.document.write('<!DOCTYPE html><html><head><title>'+esc(t)+'</title><style>body{font-family:sans-serif;text-align:center;padding:20px}@media print{body{margin:0}}</style></head><body><h1>'+esc(t)+'</h1>'+c+'<'+'/body><'+'/html>');
   w.document.close();setTimeout(function(){w.print()},500);
 }
 function viewLocById(id){viewLoc(locs.find(function(l){return l.id===id}))}

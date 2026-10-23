@@ -89,7 +89,7 @@ select option{background:var(--card)}textarea{min-height:60px;resize:vertical}
 <div class="flex"><div class="fg"><label>Menge *</label><input id="fPQty" type="number" placeholder="0" min="0"></div><div class="fg"><label>Einheit</label><select id="fPUnit"><option>Stk</option><option>g</option><option>kg</option><option>ml</option><option>l</option></select></div></div>
 <div class="flex"><div class="fg"><label>Gebinde</label><input id="fPPkg" placeholder="z.B. 500ml"></div><div class="fg"><label>Verfall</label><input id="fPExp" type="date"></div></div>
 <div class="fg"><label>Lagerplatz</label><select id="fPLoc"><option value="">— Ohne —</option></select></div>
-<div class="fg"><label>Hersteller / Marke</label><input id="fPBrand" placeholder="z.B. Barilla"></div>
+<div class="fg" id="autoCatDiv" style="background:#16213e;border-radius:10px;padding:8px 12px;margin-bottom:12px;display:none"><div style="font-size:.7rem;color:var(--amber);margin-bottom:4px">🤖 Automatisch erkannt:</div><div style="font-size:.85rem" id="autoCatText"></div><button class="btn btn-sm btn-s" onclick="document.getElementById('autoCatDiv').style.display='none'" style="margin-top:4px">Manuell ändern</button></div>
 <div class="fg"><label>Bemerkung</label><textarea id="fPNote"></textarea></div>
 <div class="mbtns"><button class="btn btn-s" onclick="closeM('mProd')">Abbrechen</button><button class="btn btn-p" id="mProdSave" onclick="saveProduct()">Speichern</button></div>
 </div></div>
@@ -246,23 +246,25 @@ async function initApp(){
   shopping=await dbGetAll('shopping');
   if(!cats.length){
     var defaults=[
-      {id:'c_nudeln',name:'Nudeln',emoji:'🍝',color:'#e74c3c'},
-      {id:'c_reis',name:'Reis',emoji:'🍚',color:'#f39c12'},
-      {id:'c_konserven',name:'Konserven',emoji:'🥫',color:'#e67e22'},
-      {id:'c_gewuerze',name:'Gewürze',emoji:'🧂',color:'#9b59b6'},
-      {id:'c_oel',name:'Öl & Essig',emoji:'🫒',color:'#2ecc71'},
-      {id:'c_saucen',name:'Saucen',emoji:'🍶',color:'#3498db'},
-      {id:'c_meel',name:'Mehl & Helfer',emoji:'🌾',color:'#d4a574'},
-      {id:'c_suesses',name:'Süßes',emoji:'🍫',color:'#e91e63'},
-      {id:'c_getraenke',name:'Getränke',emoji:'🥤',color:'#00bcd4'},
-      {id:'c_kuehl',name:'Kühlregal',emoji:'🧊',color:'#64b5f6'},
-      {id:'c_frisch',name:'Frischkost',emoji:'🥗',color:'#4caf50'},
       {id:'c_obst',name:'Obst',emoji:'🍎',color:'#f44336'},
       {id:'c_gemuese',name:'Gemüse',emoji:'🥕',color:'#8bc34a'},
-      {id:'c_fleisch',name:'Fleisch',emoji:'🥩',color:'#c0392b'},
+      {id:'c_nudeln',name:'Nudeln & Getreide',emoji:'🍝',color:'#e74c3c'},
+      {id:'c_reis',name:'Reis & Cerealien',emoji:'🍚',color:'#f39c12'},
+      {id:'c_konserven',name:'Konserven',emoji:'🥫',color:'#e67e22'},
+      {id:'c_oel_essig',name:'Öl & Essig',emoji:'🫒',color:'#2ecc71'},
+      {id:'c_saucen',name:'Saucen & Dressing',emoji:'🍶',color:'#3498db'},
+      {id:'c_gehwuerze',name:'Gewürze & Kräuter',emoji:'🧂',color:'#9b59b6'},
+      {id:'c_meel',name:'Mehl & Backen',emoji:'🌾',color:'#d4a574'},
+      {id:'c_suesses',name:'Süßes & Schokolade',emoji:'🍫',color:'#e91e63'},
+      {id:'c_getraenke',name:'Getränke',emoji:'🥤',color:'#00bcd4'},
+      {id:'c_kuehl',name:'Kühlregal & Milch',emoji:'🧊',color:'#64b5f6'},
+      {id:'c_frisch',name:'Frischkost & Brot',emoji:'🥗',color:'#4caf50'},
+      {id:'c_fleisch',name:'Fleisch & Wurst',emoji:'🥩',color:'#c0392b'},
       {id:'c_kaes',name:'Käse',emoji:'🧀',color:'#ffc107'},
       {id:'c_tiefkuehl',name:'Tiefkühler',emoji:'❄️',color:'#90caf9'},
-      {id:'c_bier',name:'Bier',emoji:'🍺',color:'#ff9800'},
+      {id:'c_haushalt',name:'Haushaltswaren',emoji:'🧹',color:'#78909c'},
+      {id:'c_waschmittel',name:'Waschmittel & Putz',emoji:'🧴',color:'#5c6bc0'},
+      {id:'c_hygiene',name:'Dusche & Hygiene',emoji:'🚿',color:'#ec407a'},
       {id:'c_sonstiges',name:'Sonstiges',emoji:'📦',color:'#795548'}
     ];
     for(var i=0;i<defaults.length;i++)await dbPut('categories',defaults[i]);
@@ -361,7 +363,7 @@ function openAddProd(){
   var opts='<option value="">— Ohne —</option>';
   locs.sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(l){opts+='<option value="'+l.id+'">'+esc(l.name)+'</option>'});
   document.getElementById('fPLoc').innerHTML=opts;
-  ['fPName','fPBarcode','fPQty','fPPkg','fPBrand','fPNote'].forEach(function(id){document.getElementById(id).value=''});
+  ['fPName','fPBarcode','fPQty','fPPkg','fPNote'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('fPExp').value='';
   var sel=document.getElementById('fPCat');sel.innerHTML='';
   cats.forEach(function(c){sel.innerHTML+='<option>'+c.emoji+' '+esc(c.name)+'</option>'});sel.selectedIndex=0;
@@ -380,18 +382,24 @@ function editProd(id){
   cats.forEach(function(c){sel.innerHTML+='<option'+(c.name===p.cat?' selected':'')+'>'+c.emoji+' '+esc(c.name)+'</option>'});
   document.getElementById('fPQty').value=p.qty;document.getElementById('fPUnit').value=p.unit||'g';
   document.getElementById('fPPkg').value=p.pkg||'';document.getElementById('fPExp').value=p.exp||'';
-  document.getElementById('fPLoc').value=p.locId||'';document.getElementById('fPBrand').value=p.brand||'';
+  document.getElementById('fPLoc').value=p.locId||'';
   document.getElementById('fPNote').value=p.note||'';
   document.getElementById('mProdSave').onclick=function(){saveProduct(id)};
   openM('mProd');
 }
 async function saveProduct(editId){
   var nm=document.getElementById('fPName').value.trim();if(!nm){toast('Name fehlt!');return}
-  var obj={name:nm,barcode:document.getElementById('fPBarcode').value.trim(),cat:document.getElementById('fPCat').value,
+  var brand=document.getElementById('fPName').value.match(/^([A-Z][a-zäöüß]+(?:\s+[A-Z][a-zäöüß]+)*)\s+(.*)/);
+  var finalName=nm;
+  var autoCat='';
+  if(brand){
+    finalName=brand[1]+' '+brand[2];
+    autoCat=autoCatFromName(brand[1]+' '+brand[2]);
+  }
+  var obj={name:finalName,barcode:document.getElementById('fPBarcode').value.trim(),cat:document.getElementById('fPCat').value,
     qty:parseInt(document.getElementById('fPQty').value)||0,unit:document.getElementById('fPUnit').value,
     pkg:document.getElementById('fPPkg').value.trim(),exp:document.getElementById('fPExp').value,
-    locId:document.getElementById('fPLoc').value||null,brand:document.getElementById('fPBrand').value.trim(),
-    note:document.getElementById('fPNote').value.trim()};
+    locId:document.getElementById('fPLoc').value||null,note:document.getElementById('fPNote').value.trim()};
   if(editId){var p=products.find(function(x){return x.id===editId});if(!p)return;Object.assign(p,obj);await dbPut('products',p);toast('✅ Aktualisiert')}
   else{obj.id=uid();obj.created=today();products.push(obj);await dbPut('products',obj);toast('✅ Gespeichert')}
   closeM('mProd');render();
@@ -412,21 +420,26 @@ async function doOnlineLookup(){
     var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(5000)});
     var j=await r.json();
     if(j.status===1&&j.product){
-      var p=j.product,cat=mapCat(p.categories_tags||[]),pkg=extPkg(p.quantity||'');
-      document.getElementById('lookupInfo').classList.remove('hidden');
-      document.getElementById('lookupInfo').innerHTML='✅ <b>'+esc(p.product_name||'Unbekannt')+'</b>'+
-        (p.brands?' · '+esc(p.brands):'')+(pkg?' · '+esc(pkg):'')+(p.countries?'<br>🌍 '+esc(p.countries):'');
-      if(!document.getElementById('fPName').value)document.getElementById('fPName').value=p.product_name||'';
-      if(!document.getElementById('fPBrand').value&&p.brands)document.getElementById('fPBrand').value=p.brands;
-      if(!document.getElementById('fPPkg').value&&pkg)document.getElementById('fPPkg').value=pkg;
-      var sel=document.getElementById('fPCat');
-      for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
-      toast('✅ Produkt gefunden!');
+    var p=j.product,cat=mapCat(p.categories_tags||[]),pkg=extPkg(p.quantity||'');
+    document.getElementById('lookupInfo').classList.remove('hidden');
+    document.getElementById('lookupInfo').innerHTML='✅ <b>'+esc(p.product_name||'Unbekannt')+'</b>'+\
+      (p.brands?' · '+esc(p.brands):'')+(pkg?' · '+esc(pkg):'')+(p.countries?'<br>🌍 '+esc(p.countries):'');
+    if(!document.getElementById('fPName').value)document.getElementById('fPName').value=p.product_name||'';
+    if(!document.getElementById('fPPkg').value&&pkg)document.getElementById('fPPkg').value=pkg;
+    var autoC=autoCatFromName(p.product_name||'');
+    if(autoC!=='Sonstiges'){
+      document.getElementById('autoCatText').textContent=autoC+' — '+(p.brands?'✅ Marke: '+esc(p.brands):'📦 Kategorie');
+      document.getElementById('autoCatDiv').style.display='block';
+    }
+    var sel=document.getElementById('fPCat');
+    for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(autoC)){sel.selectedIndex=i;break}}
+    toast('✅ Produkt gefunden!');
     } else {document.getElementById('lookupInfo').classList.remove('hidden');document.getElementById('lookupInfo').innerHTML='<span style="color:var(--red)">❌ Nicht gefunden</span>';toast('Nicht in DB')}
   }catch(e){toast('❌ '+e.message)}
   btn.textContent='🔍';btn.disabled=false;
 }
-function mapCat(tags){var t=(tags||[]).join(',').toLowerCase();if(/noodle|pasta/.test(t))return'Nudeln';if(/rice/.test(t))return'Reis';if(/canned/.test(t))return'Konserven';if(/oil/.test(t))return'Öl';if(/sauce/.test(t))return'Saucen';if(/flour|grain/.test(t))return'Mehl & Helfer';if(/sweet|chocolate/.test(t))return'Süßes';if(/drink|juice/.test(t))return'Getränke';if(/dairy/.test(t))return'Kühlregal';if(/fruit/.test(t))return'Obst';if(/vegetable/.test(t))return'Gemüse';if(/meat/.test(t))return'Fleisch';if(/cheese/.test(t))return'Käse';return'Sonstiges'}
+function mapCat(tags){var t=(tags||[]).join(',').toLowerCase();if(/noodle|pasta/.test(t))return'Nudeln & Getreide';if(/rice/.test(t))return'Reis & Cerealien';if(/canned/.test(t))return'Konserven';if(/oil/.test(t))return'Öl & Essig';if(/sauce/.test(t))return'Saucen & Dressing';if(/flour|grain/.test(t))return'Mehl & Backen';if(/sweet|chocolate/.test(t))return'Süßes & Schokolade';if(/drink|juice/.test(t))return'Getränke';if(/dairy/.test(t))return'Kühlregal & Milch';if(/fruit/.test(t))return'Obst';if(/vegetable/.test(t))return'Gemüse';if(/meat/.test(t))return'Fleisch & Wurst';if(/cheese/.test(t))return'Käse';return'Sonstiges'}
+function autoCatFromName(name){var n=name.toLowerCase();if(/nutella|schoko|nuss.*creme/.test(n))return'Kühlregal & Milch';if(/wasch|putz|reinig|spuel|kochen/.test(n))return'Waschmittel & Putz';if(/toilet|dusch|shampo|bodywash|handseif/.test(n))return'Dusche & Hygiene';if(/haushalts|tüch|roll|alumi/.test(n))return'Haushaltswaren';if(/ketchup|senf|mayi|sojasauce|dressin/.test(n))return'Saucen & Dressing';if(/nudel|spaghetti|penne|fusilli|macar/.test(n))return'Nudeln & Getreide';if(/reis|basmati|parboil/.test(n))return'Reis & Cerealien';if(/milch|joghurt|quark|saure.rahm|butter/.test(n))return'Kühlregal & Milch';if(/kaes|gouda|camembert|edamer/.test(n))return'Käse';if(/fleisch|wurst|brueste|huehner/.test(n))return'Fleisch & Wurst';if(/obst|apfel|banane|orange/.test(n))return'Obst';if(/gemuese|karotte|tomate|gurke/.test(n))return'Gemuese';if(/kaffee|tee|waser|cola|fanta/.test(n))return'Getränke';if(/kuchen|keks|schokolade|mars|snick/.test(n))return'Süßes & Schokolade';if(/gewuerz|pfeffer|salz|oregano|basion/.test(n))return'Gewürze & Kräuter';if(/oel|oliven|raps|sonnen/.test(n))return'Öl & Essig';if(/essig|balsam|apple cider/.test(n))return'Öl & Essig';if(/kuehl|tiefkuehl|pizza.*tief/.test(n))return'Tiefkühler';if(/konserven|dose/.test(n))return'Konserven';return'Sonstiges'}
 function extPkg(q){if(!q)return'';var m=q.match(/^(\d+)[\.,\s]*(g|kg|ml|l|cl)?$/i);return m?(m[1].replace(',','.')+(m[2]?m[2].toLowerCase():'')):q}
 
 /* ═══ TIMELINE ═══ */
@@ -719,12 +732,14 @@ async function handleScan(code){
       if(document.getElementById('mProd').classList.contains('on')){
         document.getElementById('fPBarcode').value=code;
         if(name)document.getElementById('fPName').value=name;
-        if(brand)document.getElementById('fPBrand').value=brand;
         if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var autoC=autoCatFromName(name||'');
+        if(autoC!=='Sonstiges')document.getElementById('autoCatText').textContent=autoC+' — '+(brand?'✅ Marke: '+esc(brand):'📦 Kategorie');
         var sel=document.getElementById('fPCat');
         for(var i=0;i<sel.options.length;i++){
-          if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}
+          if(sel.options[i].textContent.includes(autoC)){sel.selectedIndex=i;break}
         }
+        document.getElementById('autoCatDiv').style.display='block';
         document.getElementById('lookupInfo').classList.remove('hidden');
         document.getElementById('lookupInfo').innerHTML=
           '✅ <b>'+esc(name||'Unbekannt')+'</b>'+
@@ -736,10 +751,14 @@ async function handleScan(code){
         // Open modal with data
         document.getElementById('fPBarcode').value=code;
         document.getElementById('fPName').value=name||'';
-        if(brand)document.getElementById('fPBrand').value=brand;
         if(pkg)document.getElementById('fPPkg').value=extPkg(pkg)||pkg;
+        var autoC=autoCatFromName(name||'');
+        if(autoC!=='Sonstiges'){
+          document.getElementById('autoCatText').textContent=autoC+' — '+(brand?'✅ Marke: '+esc(brand):'📦 Kategorie');
+          document.getElementById('autoCatDiv').style.display='block';
+        }
         var sel=document.getElementById('fPCat');
-        for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(cat)){sel.selectedIndex=i;break}}
+        for(var i=0;i<sel.options.length;i++){if(sel.options[i].textContent.includes(autoC)){sel.selectedIndex=i;break}}
         openM('mProd');
         toast('✅ Produkt gefunden!');
       }

@@ -554,39 +554,44 @@ function showScannerOverlay(cbOk){
   var wrap = document.getElementById('scanWrap');
   var reticle = document.getElementById('scanReticle');
   wrap.classList.add('on');
+  wrap.style.display = 'flex';
 
-  // Reticle is always there in DOM; make it visible
   if(reticle) reticle.style.display = 'block';
 
-  // Give the browser one frame to paint the overlay
-  setTimeout(function(){
-    try{
-      html5qr = new Html5Qrcode('scanReader', false);
-      html5qr.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: 250,
-          disableAudioFallback: true,
-          aspectRatio: 16 / 9
-        },
-        function(text){
-          scannerOn = false;
-          cbOk(text);
-        },
-        function(err){
+  // Wait for overlay to be fully painted
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){
+      try{
+        html5qr = new Html5Qrcode('scanReader', { verbose: false });
+        html5qr.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: false,
+            cameraDisplayWidth: 480,
+            cameraDisplayHeight: 480,
+            videoFrameWidth: 480,
+            videoFrameHeight: 480
+          },
+          function(decodedText){
+            scannerOn = false;
+            hideScannerOverlay();
+            cbOk(decodedText);
+          },
+          function(errorMessage){
+            // This is called continuously while scanning — do NOT error on this
+          }
+        ).catch(function(err){
           scannerError(err);
-        }
-      ).catch(function(err){
-        scannerError(err);
-      });
-      // Show toggle camera button after camera starts
-      setTimeout(function(){
-        var btn = document.getElementById('scanBtn');
-        if(btn) btn.style.display = 'inline-block';
-      }, 500);
-    } catch(e){ scannerError(e); }
-  }, 100);
+        });
+        // Show toggle camera button after camera starts
+        setTimeout(function(){
+          var btn = document.getElementById('scanBtn');
+          if(btn) btn.style.display = 'inline-block';
+        }, 800);
+      } catch(e){ scannerError(e); }
+    });
+  });
 }
 
 /** Hide the overlay and stop the camera cleanly */

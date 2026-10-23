@@ -395,6 +395,11 @@ async function saveProduct(editId){
   if(brand){
     finalName=brand[1]+' '+brand[2];
     autoCat=autoCatFromName(brand[1]+' '+brand[2]);
+    // Automatisch Kategorie setzen wenn noch keine ausgewählt
+    var sel=document.getElementById('fPCat');
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].textContent.includes(autoCat)){sel.selectedIndex=i;break}
+    }
   }
   var obj={name:finalName,barcode:document.getElementById('fPBarcode').value.trim(),cat:document.getElementById('fPCat').value,
     qty:parseInt(document.getElementById('fPQty').value)||0,unit:document.getElementById('fPUnit').value,
@@ -409,6 +414,48 @@ async function delProd(id){
   showCf('"'+p.name+'" löschen?\nTimeline-Einträge gehen auch verloren.',function(){
     products=products.filter(function(x){return x.id!==id});dbClear('product_timeline').then(function(){render()});toast('🗍');
   });
+}
+
+/* ═══ REFILL MODE (Auffüllen über Barcode-Scan) ═══ */
+var refillMode=false,refillProdId=null,refillLocId=null;
+function startRefillMode(locId){
+  refillMode=true;refillLocId=locId;
+  toast('📷 Scanner aktiv — Barcode scannen zum Auffüllen');
+  scanProd();
+}
+async function handleRefill(code){
+  /* 1. Produkt in DB finden */
+  var local=products.find(function(p){return p.barcode===code});
+  if(local){
+    var newQty=prompt('Aktueller Bestand: '+local.qty+' '+local.unit+'\nWie viel hinzufügen?','1');
+    if(newQty===null)return;
+    var addQty=parseInt(newQty)||0;
+    if(addQty<=0){toast('❌ Ungültige Menge');return}
+    local.qty+=addQty;
+    await dbPut('products',local);
+    await dbPut('product_timeline',{id:uid(),prodId:local.id,type:'bought',amount:addQty,note:'Auffüllen von '+local.cat,ts:new Date().toISOString()});
+    toast('✅ '+local.name+' → '+local.qty+' '+local.unit);
+    render();return;
+  }
+  /* 2. Nicht gefunden → OpenFoodFactslookup */
+  toast('🔍 Suche Produkt...');
+  try{
+    var r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json',{signal:AbortSignal.timeout(8000)});
+    var j=await r.json();
+    if(j.status===1&&j.product){
+      var p=j.product,name=p.product_name||'',brand=p.brands||'',pkg=p.quantity||'';
+      var autoC=autoCatFromName(name);
+      var finalName=name;
+      if(brand)finalName=brand+' '+name;
+      var newProd={id:uid(),name:finalName,barcode:code,cat:autoC,qty:1,unit:'Stk',pkg:extPkg(pkg)||pkg,exp:'',locId:refillLocId,note:'',created:today()};
+      products.push(newProd);await dbPut('products',newProd);
+      await dbPut('product_timeline',{id:uid(),prodId:newProd.id,type:'created',amount:1,note:'Neu angelegt via Scan',ts:new Date().toISOString()});
+      toast('✅ '+finalName+' angelegt');
+      render();return;
+    }
+    toast('❌ Nicht in OpenFoodFacts — manuell erfassen');
+    openAddProd();
+  }catch(e){toast('❌ '+e.message);openAddProd()}
 }
 
 /* ═══ ONLINE LOOKUP ═══ */
@@ -477,7 +524,7 @@ async function renderLocs(main){
     h+='<div style="font-size:.7rem;color:var(--sub);text-transform:uppercase;margin:12px 0 8px">📁 '+esc(room)+'</div>';
     groups[room].forEach(function(l){
       var cnt=products.filter(function(p){return p.locId===l.id}).length;
-      h+='<div class="card"><div class="flex" style="align-items:flex-start"><div style="flex:1"><div style="font-weight:600">'+esc(l.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+cnt+' Produkt'+(cnt!==1?'e':'')+' · Code: <span class="badge b-loc">'+esc(l.code)+'</span>'+(l.shelf?' · Regal '+esc(l.shelf):'')+(l.compartment?' · Fach '+esc(l.compartment):'')+'</div></div><div class="flex" style="gap:3px"><button onclick="showQR(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="QR">📱</button><button onclick="viewLocById(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Inhalte">👁</button><button onclick="assignLoc(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Zuweisen">➕</button><button onclick="delLoc(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem;color:var(--red)">🗑</button></div></div></div>';
+      h+='<div class="card"><div class="flex" style="align-items:flex-start"><div style="flex:1"><div style="font-weight:600">'+esc(l.name)+'</div><div style="font-size:.7rem;color:var(--sub)">'+cnt+' Produkt'+(cnt!==1?'e':'')+' · Code: <span class="badge b-loc">'+esc(l.code)+'</span>'+(l.shelf?' · Regal '+esc(l.shelf):'')+(l.compartment?' · Fach '+esc(l.compartment):'')+'</div></div><div class="flex" style="gap:3px"><button onclick="showQR(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="QR">📱</button><button onclick="viewLocById(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Inhalte">👁</button><button onclick="startRefillMode(\''+l.id+'\')" class="btn btn-sm btn-p" style="width:28px;height:28px;padding:0;font-size:.7rem" title="Auffüllen">📦</button><button onclick="delLoc(\''+l.id+'\')" class="btn btn-sm btn-s" style="width:28px;height:28px;padding:0;font-size:.7rem;color:var(--red)">🗑</button></div></div></div>';
     });
   });main.innerHTML=h;
 }
@@ -644,7 +691,8 @@ function toggleCamera(){
         if(!scannerOn) return;
         scannerOn = false;
         hideScannerOverlay();
-        handleScan(decodedText);
+        if(refillMode) handleRefill(decodedText);
+        else handleScan(decodedText);
       },
       function(){ /* ignore scan errors */ }
     );
@@ -670,6 +718,8 @@ function scanProd(){
   showScannerOverlay(function(text){
     if(pendingLoc){
       assignToLoc(text);
+    } else if(refillMode){
+      handleRefill(text);
     } else {
       handleScan(text);
     }

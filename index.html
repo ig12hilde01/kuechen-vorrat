@@ -580,6 +580,11 @@ function showScannerOverlay(cbOk){
       ).catch(function(err){
         scannerError(err);
       });
+      // Show toggle camera button after camera starts
+      setTimeout(function(){
+        var btn = document.getElementById('scanBtn');
+        if(btn) btn.style.display = 'inline-block';
+      }, 500);
     } catch(e){ scannerError(e); }
   }, 100);
 }
@@ -591,6 +596,9 @@ function hideScannerOverlay(){
     html5qr = null;
   }
   document.getElementById('scanWrap').classList.remove('on');
+  // Hide toggle camera button
+  var btn = document.getElementById('scanBtn');
+  if(btn) btn.style.display = 'none';
   var ret = document.getElementById('scanReticle');
   if(ret) ret.style.display = 'none';
 }
